@@ -38,11 +38,15 @@ class Classifier(BaseLitModule):
         p, s = self.acc(logits, label)
         self.samples += s
         self.positives += p
-        self.log('acc', self.positives / self.samples, prog_bar=True, logger=False)
+        self.log('acc/train', self.positives / self.samples, prog_bar=True, logger=False)
+        for j, para in enumerate(self.optimizers().param_groups):
+            self.log(f'x/lr{j}', para['lr'], prog_bar=False, logger=True)
+
+        self.log('step', self.global_step, prog_bar=True, logger=False)
         return loss
 
     def training_epoch_end(self, training_step_outputs):
-        self.log('acc', self.positives / self.samples, prog_bar=False, logger=True)
+        self.log('acc/train', self.positives / self.samples, prog_bar=False, logger=True)
         self.positives = 0
         self.samples = 0
 
@@ -59,4 +63,4 @@ class Classifier(BaseLitModule):
         for (p, s) in val_step_outputs:
             positives += p
             samples += s
-        self.log('val_acc', positives / samples, prog_bar=True, logger=True)
+        self.log('acc/val', positives / samples, prog_bar=True, logger=True, sync_dist=True)

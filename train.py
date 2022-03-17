@@ -18,6 +18,10 @@ def parse_opt():
                         help='save to project/name')
     parser.add_argument('--name',           type=str,  default='cls',
                         help='save to project/name')
+    parser.add_argument('--fp16',           action='store_true',
+                        help='use fp16')
+    parser.add_argument('--sync-bn',        action='store_true',
+                        help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--resume',         type=str,  default=None,
                         help='resume model from file')
     opt = parser.parse_known_args()[0]
@@ -33,7 +37,8 @@ def main():
     cfg = Config.fromfile(opt.cfg)
     # cfg = update_cfg(opt, cfg)
 
-    pl.seed_everything(opt.seed, workers=True)
+    if opt.seed is not None:
+        pl.seed_everything(opt.seed, workers=True)
     gpus = cfg['strategy']['gpus']
     epochs = cfg['strategy']['epochs']
     batch_size_per_gpu = cfg['data']['batch_size_per_gpu']
@@ -64,10 +69,14 @@ def main():
         max_epochs=epochs,
         max_steps=(ldata.trainset_size + batch_size - 1) // batch_size * epochs,
         logger=tb_logger,
-        callbacks=[bar]
+        callbacks=[bar],
+        sync_batchnorm=opt.sync_bn and gpus > 1,
+        precision=16 if opt.fp16 else 32,
+        deterministic=False if opt.seed is None else True,
+        benchmark=True if opt.seed is None else False,
+        strategy='ddp' if gpus > 1 else None
     )
     trainer.fit(lmodel, ldata)
-
 
 
 if __name__ == '__main__':
