@@ -1,18 +1,61 @@
+import os
 import math
 import torch
 import numpy as np
 import torch.nn as nn
 from abc import ABCMeta, abstractmethod
+from torch.utils.data import DataLoader
 from torch.optim import SGD, Adam, AdamW, lr_scheduler
 from pytorch_lightning import LightningModule
 
 from .utils import colorstr
+from .registry import Registry, build_from_cfg
+
+DATASETS = Registry('dataset')
+
+
+def build_dataset(cfg, default_args=None):
+    pipeline = build_from_cfg(cfg, DATASETS, default_args)
+    return pipeline
 
 
 class BaseLitModule(LightningModule, metaclass=ABCMeta):
-    def __init__(self, strategy):
+    def __init__(self, data_cfg, strategy):
         super(BaseLitModule, self).__init__()
+        self.data_cfg = data_cfg
         self.strategy = strategy
+        self.batch_size = data_cfg.batch_size_per_gpu
+        self.num_workers = min(data_cfg.workers_per_gpu,
+                               os.cpu_count() // max(torch.cuda.device_count(),1),
+                               self.batch_size if self.batch_size > 1 else 0)
+        self.pin_memory = data_cfg.pin_memory
+
+    def setup(self, stage=None):
+        if stage == 'fit' or stage is None:
+            self.trainset = build_dataset(self.data_cfg.train)
+            self.trainset_size = len(self.trainset)
+            self.valset = build_dataset(self.data_cfg.val)
+            self.valset_size = len(self.valset)
+        if stage == 'test' or stage is None:
+            self.testset = build_dataset(self.data_cfg.test)
+
+    def train_dataloader(self):
+        return DataLoader(self.trainset,
+                          batch_size=self.batch_size,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory)
+
+    def val_dataloader(self):
+        return DataLoader(self.valset,
+                          batch_size=2*self.batch_size,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory)
+
+    def test_dataloader(self):
+        return DataLoader(self.testset,
+                          batch_size=2*self.batch_size,
+                          num_workers=self.num_workers,
+                          pin_memory=self.pin_memory)
 
     def forward(self, x):
         return self.model(x)

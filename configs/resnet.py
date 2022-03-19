@@ -58,4 +58,5 @@ model = dict(
     architecture=dict(type='resnet18', pretrained=True, num_classes=2),
     loss_cfg=dict(type='CrossEntropyLoss'),
     strategy=strategy,
+    data_cfg=data
 )

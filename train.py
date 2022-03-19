@@ -4,7 +4,7 @@ import pytorch_lightning as pl
 from pytorch_lightning import Trainer, callbacks, loggers
 
 from lightningOCR.common import Config, LitProgressBar
-from lightningOCR.common import build_lightning_data, build_lightning_model
+from lightningOCR.common import build_lightning_model
 from lightningOCR import classifier
 
 
@@ -46,16 +46,12 @@ def main():
 
     tb_logger = loggers.TensorBoardLogger(save_dir=opt.project, name=opt.name)
 
-    # =============================================
-    # build lightning data
-    ldata = build_lightning_data(cfg.data)
-    ldata.prepare_data()
-    ldata.setup(stage='fit')
-
 
     # =============================================
     # build lightning model
     lmodel = build_lightning_model(cfg.model)
+    lmodel.prepare_data()
+    lmodel.setup(stage='fit')
 
 
     # =============================================
@@ -67,7 +63,7 @@ def main():
     trainer = Trainer(
         gpus=gpus,
         max_epochs=epochs,
-        max_steps=(ldata.trainset_size + batch_size - 1) // batch_size * epochs,
+        max_steps=(lmodel.trainset_size + batch_size - 1) // batch_size * epochs,
         logger=tb_logger,
         callbacks=[bar],
         sync_batchnorm=opt.sync_bn and gpus > 1,
@@ -76,7 +72,7 @@ def main():
         benchmark=True if opt.seed is None else False,
         strategy='ddp' if gpus > 1 else None
     )
-    trainer.fit(lmodel, ldata)
+    trainer.fit(lmodel)
 
 
 if __name__ == '__main__':

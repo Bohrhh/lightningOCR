@@ -1,23 +1,12 @@
-import os
-import torch
 import collections
 import albumentations as A
-import pytorch_lightning as pl
-from torch.utils.data import DataLoader, ConcatDataset
 
-from .registry import Registry, build_from_cfg
+from .registry import build_from_cfg
 from .pipelines import PIPELINES
-
-DATASETS = Registry('dataset')
 
 
 def build_pipeline(cfg, default_args=None):
     pipeline = build_from_cfg(cfg, PIPELINES, default_args)
-    return pipeline
-
-
-def build_dataset(cfg, default_args=None):
-    pipeline = build_from_cfg(cfg, DATASETS, default_args)
     return pipeline
 
 
@@ -68,39 +57,3 @@ class Compose(object):
         return format_string
 
 
-class BaseDataModule(pl.LightningDataModule):
-    def __init__(self, cfg):
-        super().__init__()
-        self.cfg = cfg
-        self.batch_size = cfg.batch_size_per_gpu
-        self.num_workers = min(cfg.workers_per_gpu,
-                               os.cpu_count() // max(torch.cuda.device_count(),1),
-                               self.batch_size if self.batch_size > 1 else 0)
-        self.pin_memory = cfg.pin_memory
-
-    def setup(self, stage=None):
-        if stage == 'fit' or stage is None:
-            self.trainset = build_dataset(self.cfg.train)
-            self.valset = build_dataset(self.cfg.val)
-            self.trainset_size = len(self.trainset)
-            self.valset_size = len(self.valset)
-        if stage == 'test' or stage is None:
-            self.testset = build_dataset(self.cfg.test)
-
-    def train_dataloader(self):
-        return DataLoader(self.trainset,
-                          batch_size=self.batch_size,
-                          num_workers=self.num_workers,
-                          pin_memory=self.pin_memory)
-
-    def val_dataloader(self):
-        return DataLoader(self.valset,
-                          batch_size=2*self.batch_size,
-                          num_workers=self.num_workers,
-                          pin_memory=self.pin_memory)
-
-    def test_dataloader(self):
-        return DataLoader(self.testset,
-                          batch_size=2*self.batch_size,
-                          num_workers=self.num_workers,
-                          pin_memory=self.pin_memory)
