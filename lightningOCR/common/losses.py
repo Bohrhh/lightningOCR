@@ -5,7 +5,18 @@ from .registry import Registry
 
 LOSSES = Registry('loss')
 
-LOSSES.register(name='CrossEntropyLoss', obj=nn.CrossEntropyLoss)
+
+@LOSSES.register()
+class CrossEntropyLoss(nn.Module):
+    def __init__(self):
+        super(CrossEntropyLoss, self).__init__()
+        self.loss_fun = nn.CrossEntropyLoss()
+    
+    def forward(self, pred, gt):
+        logits = pred['logits']
+        targets = gt['targets']
+        loss = self.loss_fun(logits, targets)
+        return loss
 
 
 @LOSSES.register()
@@ -31,4 +42,25 @@ class LabelSmoothing(nn.Module):
         smooth_loss = -logprobs.mean(dim=-1)
         loss = self.confidence * nll_loss + self.smoothing * smooth_loss
         loss = loss.mean()*self.loss_weight
+        return loss
+
+
+@LOSSES.register()
+class CTCLoss(nn.Module):
+    def __init__(self):
+        super(CTCLoss, self).__init__()
+        self.loss_func = nn.CTCLoss(blank=0, reduction='mean')
+
+    def forward(self, pred, gt):
+        logits = pred['logits']
+        targets = gt['targets']
+        target_lengths = gt['target_lengths']
+
+        N, T, _ = logits.shape
+        x = torch.log_softmax(logits, dim=2)
+        x_for_loss = x.permute(1, 0, 2).contiguous()  # T * N * C
+        x_lengths = torch.full(size=(N, ), fill_value=T, dtype=torch.long, device=logits.device)
+        target_lengths = torch.clamp(target_lengths, min=1, max=T).long()
+
+        loss = self.loss_func(x_for_loss, targets, x_lengths, target_lengths)
         return loss

@@ -8,8 +8,8 @@ from lightningOCR.common import Compose, DATASETS, BaseDataset
 
 
 @DATASETS.register()
-class ClsDataset(BaseDataset):
-    """Dataset for direction classification.
+class RecDataset(Dataset, metaclass=ABCMeta):
+    """Dataset for recognition.
 
     An example of file structure is as followed.
 
@@ -27,7 +27,7 @@ class ClsDataset(BaseDataset):
                  data_root,
                  pipeline,
                  length=None):
-        super(ClsDataset, self).__init__(pipeline)
+        super(RecDataset, self).__init__(pipeline)
         if isinstance(data_root, str):
             self.data_root = [data_root]
         else:
@@ -46,7 +46,7 @@ class ClsDataset(BaseDataset):
             num_samples = int(txn.get('num-samples'.encode()))
             self.lmdb_sets[i] = {"dirpath":root, "env":env, "txn":txn, "num_samples":num_samples}
         self.data_idx_order_list = self.dataset_traversal()
-        
+
         self.length = self.data_idx_order_list.shape[0] if length is None else length
         assert self.length<=self.data_idx_order_list.shape[0], \
             "The data number is only {}, but set by {}".format(self.data_idx_order_list.shape[0], self.length)

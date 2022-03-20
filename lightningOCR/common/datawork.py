@@ -1,5 +1,7 @@
 import collections
 import albumentations as A
+from torch.utils.data import Dataset
+from abc import ABCMeta, abstractmethod
 
 from .registry import build_from_cfg
 from .pipelines import PIPELINES
@@ -57,3 +59,70 @@ class Compose(object):
         return format_string
 
 
+class BaseDataset(Dataset, metaclass=ABCMeta):
+    def __init__(self, pipeline):
+        super(BaseDataset, self).__init__()
+        self.pipeline  = Compose(pipeline['transforms'], 
+                                 pipeline.get('bbox_params'), 
+                                 pipeline.get('keypoint_params'),
+                                 pipeline.get('additional_targets'))
+        if pipeline['transforms'][-1].type=='Normalize':
+            self.mean = self.pipeline.transforms[-1].mean
+            self.std  = self.pipeline.transforms[-1].std
+        else:
+            self.mean = 0
+            self.std  = 1
+
+    @abstractmethod
+    def load_data(self, idx):
+        """
+        Args:
+            idx
+        Return:
+            results (dict): {'data1'    :np.ndarray, 
+                             'data2'    :np.ndarray} 
+        """
+        pass
+
+    def before_pipeline(self, results):
+        """HOOK for before pipeline 
+        """
+        return results
+
+    def after_pipeline(self, results):
+        """HOOK for after pipeline 
+        """
+        return results
+
+    @abstractmethod
+    def gather(self, results):
+        """Gather results elements to inputs and gt
+        Return:
+            results: {
+                'image': value
+                'gt'    : {item1: value1, item2: value2}
+                'other' : {item1: value1, item2: value2}
+            }
+        """
+        pass
+
+    def __getitem__(self, idx):
+        """Get training/test data after pipeline.
+
+        Args:
+            idx (int): Index of data.
+
+        Returns:
+            results: {
+                'image': value
+                'gt'    : {item1: value1, item2: value2}
+                'other' : {item1: value1, item2: value2}
+            }
+        """
+
+        results  = self.load_data(idx)
+        results  = self.before_pipeline(results)
+        results  = self.pipeline(results)
+        results  = self.after_pipeline(results)
+        results  = self.gather(results)
+        return results

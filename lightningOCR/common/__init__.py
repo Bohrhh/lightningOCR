@@ -1,10 +1,11 @@
 from .config import Config
 from .registry import Registry, build_from_cfg
-from .datawork import Compose
+from .datawork import Compose, BaseDataset
 from .litmodel import DATASETS, BaseLitModule
 from .pipelines import PIPELINES
 from .losses import LOSSES
 from .utils import LitProgressBar
+from .activation import Activation
 
 __all__ = ['PIPELINES', 'DATASETS', 'LIGHTNING_DATAS', 'BACKBONES', 'ARCHITECTURES',
            'Config', 'build_backbone', 'build_lightning_model']

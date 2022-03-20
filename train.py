@@ -1,17 +1,23 @@
+from email.policy import strict
 import os
+import torch
 import argparse
 import pytorch_lightning as pl
 from pytorch_lightning import Trainer, callbacks, loggers
 
+from lightningOCR import classifier
+from lightningOCR import recognizer
 from lightningOCR.common import Config, LitProgressBar
 from lightningOCR.common import build_lightning_model
-from lightningOCR import classifier
+from lightningOCR.common.utils import intersect_dicts
 
 
 def parse_opt():
     parser = argparse.ArgumentParser()
     parser.add_argument('--cfg',            type=str,  default='configs/resnet.py',
                         help='train config file path')
+    parser.add_argument('--weights',        type=str,  default='',
+                        help='initial weights path')
     parser.add_argument('--seed',           type=int,  default=77,
                         help='random seed')
     parser.add_argument('--project',        type=str,  default='../runs/train',
@@ -34,6 +40,7 @@ def main():
     # parse args
     opt = parse_opt()
     opt.cfg = 'configs/resnet.py'
+    # opt.weights = 'pretrained/ch_ptocr_v2_rec_infer.pth'
     cfg = Config.fromfile(opt.cfg)
     # cfg = update_cfg(opt, cfg)
 
@@ -53,6 +60,12 @@ def main():
     lmodel.prepare_data()
     lmodel.setup(stage='fit')
 
+    if opt.weights:
+        assert os.path.exists(opt.weights)
+        csd = torch.load(opt.weights, map_location='cpu')['state_dict']
+        csd = intersect_dicts(csd, lmodel.model.state_dict())  # intersect
+        lmodel.model.load_state_dict(csd, strict=False)
+        print(f'Transferred {len(csd)}/{len(lmodel.state_dict())} items from {opt.weights}')  # report
 
     # =============================================
     # callbacks

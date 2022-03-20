@@ -217,7 +217,7 @@ class ResNet(nn.Module):
         return x
 
     def forward(self, x):
-        return self._forward_impl(x)
+        return {'logits': self._forward_impl(x)}
 
 
 def _resnet(arch, block, layers, pretrained, progress, **kwargs):
