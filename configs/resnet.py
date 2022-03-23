@@ -1,17 +1,17 @@
 # ========================
 # data
 dataset_type = 'ClsDataset'
-data_root = '../data/rec/icdar2019_lsvt'
+data_root = '../data/icdar2019_lsvt/train/rec'
 img_norm_cfg = dict(
     mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
 train_pipeline = {'transforms':[
                       dict(type='ClsRotate180', p=0.5),
-                      dict(type='ClsResize', height=48, width=192, p=1),
+                      dict(type='TextLineResize', height=48, width=192, p=1),
                       dict(type='Normalize', **img_norm_cfg)]}
 
 val_pipeline =  {'transforms':[
-                      dict(type='ClsResize', height=48, width=192, p=1),
+                      dict(type='TextLineResize', height=48, width=192, p=1),
                       dict(type='Normalize', **img_norm_cfg)]}
 
 test_pipeline =  {'transforms':[ 

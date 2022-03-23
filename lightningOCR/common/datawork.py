@@ -1,3 +1,4 @@
+import numpy as np
 import collections
 import albumentations as A
 from torch.utils.data import Dataset
@@ -122,7 +123,13 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
 
         results  = self.load_data(idx)
         results  = self.before_pipeline(results)
-        results  = self.pipeline(results)
-        results  = self.after_pipeline(results)
-        results  = self.gather(results)
+        try:
+            results  = self.pipeline(results)
+            results  = self.after_pipeline(results)
+            results  = self.gather(results)
+        except:
+            results = None
+
+        if results is None:
+            return self.__getitem__(np.random.randint(self.__len__()))
         return results

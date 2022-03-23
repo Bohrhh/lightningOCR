@@ -74,6 +74,7 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         momentum = self.strategy['momentum']
         weight_decay = self.strategy['weight_decay']
         cos_lr = self.strategy['cos_lr']
+        optim = self.strategy['optim']
 
         max_steps = self.trainer.max_steps
         warmup_steps = max(1500, max_steps//epochs * warmup_epochs)
@@ -89,9 +90,9 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
             elif hasattr(v, 'weight') and isinstance(v.weight, nn.Parameter):  # weight (with decay)
                 g1.append(v.weight)
 
-        if self.strategy == 'Adam':
+        if optim == 'Adam':
             optimizer = Adam(g0, lr=lr0, betas=(momentum, 0.999))  # adjust beta1 to momentum
-        elif self.strategy == 'AdamW':
+        elif optim == 'AdamW':
             optimizer = AdamW(g0, lr=lr0, betas=(momentum, 0.999))  # adjust beta1 to momentum
         else:
             optimizer = SGD(g0, lr=lr0, momentum=momentum, nesterov=True)
@@ -102,7 +103,7 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
               f"{len(g0)} weight (no decay), {len(g1)} weight, {len(g2)} bias")
         del g0, g1, g2
 
-        lf = lambda x: lrfun_with_warmup(x, max_steps, warmup_steps, lr0, lrf, cos_lr)
+        lf = lambda x: lrfun_with_warmup(x, max_steps, warmup_steps, lrf, cos_lr)
         scheduler = {
             "scheduler": lr_scheduler.LambdaLR(optimizer, lr_lambda=lf),
             "interval": "step",
@@ -112,7 +113,7 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         return [optimizer], [scheduler]
 
 
-def lrfun_with_warmup(step, max_steps, warmup_steps, lr0, lrf, cos_lr=True):
+def lrfun_with_warmup(step, max_steps, warmup_steps, lrf, cos_lr=True):
 
     if cos_lr:
         lf = lambda x: ((1 - math.cos(x * math.pi / max_steps)) / 2) * (lrf - 1) + 1
@@ -120,6 +121,6 @@ def lrfun_with_warmup(step, max_steps, warmup_steps, lr0, lrf, cos_lr=True):
         lf = lambda x: (1 - x / max_steps) * (1.0 - lrf) + lrf
 
     if step < warmup_steps:
-        return np.interp(step, [0, warmup_steps], [0, lr0 * lf(warmup_steps)])
+        return np.interp(step, [0, warmup_steps], [0, lf(warmup_steps)])
     else:
-        return lr0 * lf(step)
+        return lf(step)

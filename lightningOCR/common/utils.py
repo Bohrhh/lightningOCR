@@ -1,3 +1,4 @@
+import os
 from pytorch_lightning.callbacks import TQDMProgressBar
 
 
@@ -41,3 +42,19 @@ def colorstr(*input):
 def intersect_dicts(da, db, exclude=()):
     # Dictionary intersection of matching keys and shapes, omitting 'exclude' keys, using da values
     return {k: v for k, v in da.items() if k in db and not any(x in k for x in exclude) and v.shape == db[k].shape}
+
+
+def update_cfg(cfg, opt):
+    # update data
+    cfg['data']['batch_size_per_gpu'] = opt.batch_size // max(opt.gpus, 1)
+    cfg['data']['workers_per_gpu'] = min([opt.workers, os.cpu_count() // max(opt.gpus, 1), opt.batch_size // max(opt.gpus, 1)])
+
+    # update strategy
+    cfg['strategy']['gpus'] = opt.gpus
+    cfg['strategy']['epochs'] = opt.epochs
+    cfg['strategy']['optim'] = opt.optim
+
+    # update lightning model
+    cfg['model']['strategy'] = cfg['strategy']
+    cfg['model']['data_cfg'] = cfg['data']
+    return cfg

@@ -8,7 +8,7 @@ from lightningOCR.common import Compose, DATASETS, BaseDataset
 
 
 @DATASETS.register()
-class RecDataset(Dataset, metaclass=ABCMeta):
+class RecDataset(BaseDataset):
     """Dataset for recognition.
 
     An example of file structure is as followed.
@@ -88,7 +88,7 @@ class RecDataset(Dataset, metaclass=ABCMeta):
         imgbuf, label = sample_info
         img = np.frombuffer(imgbuf, dtype='uint8')
         img = cv2.imdecode(img, 1)
-        return {'image': img, 'label': 0}
+        return {'image': img, 'label': label}
 
     def after_pipeline(self, results):
         image = results['image']
@@ -101,7 +101,8 @@ class RecDataset(Dataset, metaclass=ABCMeta):
         results = {
             'image': results['image'],
             'gt':{
-                'targets': results.get('label')
+                'targets': results['label'],
+                'target_lengths': results['length']
             }
         }
         return results

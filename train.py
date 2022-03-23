@@ -1,15 +1,14 @@
-from email.policy import strict
 import os
 import torch
 import argparse
 import pytorch_lightning as pl
-from pytorch_lightning import Trainer, callbacks, loggers
+from pytorch_lightning import Trainer, loggers
 
 from lightningOCR import classifier
 from lightningOCR import recognizer
 from lightningOCR.common import Config, LitProgressBar
 from lightningOCR.common import build_lightning_model
-from lightningOCR.common.utils import intersect_dicts
+from lightningOCR.common.utils import intersect_dicts, update_cfg
 
 
 def parse_opt():
@@ -18,7 +17,15 @@ def parse_opt():
                         help='train config file path')
     parser.add_argument('--weights',        type=str,  default='',
                         help='initial weights path')
-    parser.add_argument('--seed',           type=int,  default=77,
+    parser.add_argument('--gpus',           type=int,  default=1),
+    parser.add_argument('--epochs',         type=int,  default=10),
+    parser.add_argument('--batch-size',     type=int,  default=16,
+                        help='total batch size for all GPUs')
+    parser.add_argument('--workers',        type=int,  default=8,
+                        help='max dataloader workers (per RANK in DDP mode)')
+    parser.add_argument('--optim',          type=str,  choices=['SGD', 'Adam', 'AdamW'], default='SGD',
+                        help='optimizer')
+    parser.add_argument('--seed',           type=int,  default=None,
                         help='random seed')
     parser.add_argument('--project',        type=str,  default='../runs/train',
                         help='save to project/name')
@@ -39,10 +46,10 @@ def main():
     # =============================================
     # parse args
     opt = parse_opt()
-    opt.cfg = 'configs/resnet.py'
+    opt.cfg = 'configs/crnn.py'
     # opt.weights = 'pretrained/ch_ptocr_v2_rec_infer.pth'
     cfg = Config.fromfile(opt.cfg)
-    # cfg = update_cfg(opt, cfg)
+    cfg = update_cfg(cfg, opt)
 
     if opt.seed is not None:
         pl.seed_everything(opt.seed, workers=True)

@@ -32,8 +32,10 @@ class Classifier(BaseLitModule):
         super(Classifier, self).__init__(data_cfg, strategy)
         self.model = build_model(architecture)
         self.loss = build_loss(loss_cfg)
-        self.train_corrects = 0
-        self.train_samples = 0
+        self.register_buffer('train_corrects', torch.tensor(0.0))
+        self.register_buffer('train_samples', torch.tensor(0.0))
+        self.register_buffer('val_corrects', torch.tensor(0.0))
+        self.register_buffer('val_samples', torch.tensor(0.0))
 
     def training_step(self, batch, batch_idx):
         x = batch['image']
@@ -55,22 +57,23 @@ class Classifier(BaseLitModule):
         return loss
 
     def training_epoch_end(self, training_step_outputs):
-        self.log('acc/train', self.train_corrects / self.train_samples, prog_bar=False, logger=True)
-        self.train_corrects = 0
-        self.train_samples = 0
+        train_corrects = self.all_gather(self.train_corrects)
+        train_samples = self.all_gather(self.train_samples)
+        self.log('acc/train', train_corrects.sum() / train_samples.sum(), prog_bar=False, logger=True)
+        self.train_corrects.zero_()
+        self.train_samples.zero_()
 
     def validation_step(self, batch, batch_idx):
         x = batch['image']
         gt = batch['gt']
         pred = self.model(x)
         c, s = get_acc(pred, gt)
-        return c, s
+        self.val_corrects += c
+        self.val_samples += s
 
     def validation_epoch_end(self, val_step_outputs):
-        val_step_outputs = self.all_gather(val_step_outputs)
-        val_corrects = 0
-        val_samples = 0
-        for (c, s) in val_step_outputs:
-            val_corrects += c
-            val_samples += s
-        self.log('acc/val', val_corrects / val_samples, prog_bar=True, logger=True, rank_zero_only=True)
+        val_corrects = self.all_gather(self.val_corrects)
+        val_samples = self.all_gather(self.val_samples)
+        self.log('acc/val', val_corrects.sum() / val_samples.sum(), prog_bar=True, logger=True, rank_zero_only=True)
+        self.val_corrects.zero_()
+        self.val_samples.zero_()
