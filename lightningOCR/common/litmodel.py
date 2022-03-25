@@ -8,10 +8,14 @@ from torch.utils.data import DataLoader
 from torch.optim import SGD, Adam, AdamW, lr_scheduler
 from pytorch_lightning import LightningModule
 
+from .losses import LOSSES
+from .metric import METRICS
 from .utils import colorstr
 from .registry import Registry, build_from_cfg
 
+
 DATASETS = Registry('dataset')
+ARCHITECTURES = Registry('architecture')
 
 
 def build_dataset(cfg, default_args=None):
@@ -19,8 +23,20 @@ def build_dataset(cfg, default_args=None):
     return pipeline
 
 
+def build_model(cfg):
+    return build_from_cfg(cfg, ARCHITECTURES)
+
+
+def build_loss(cfg):
+    return build_from_cfg(cfg, LOSSES)
+
+
+def build_metric(cfg):
+    return build_from_cfg(cfg, METRICS)
+
+
 class BaseLitModule(LightningModule, metaclass=ABCMeta):
-    def __init__(self, data_cfg, strategy):
+    def __init__(self, data_cfg, strategy, architecture, loss_cfg, metric_cfg=None):
         super(BaseLitModule, self).__init__()
         self.data_cfg = data_cfg
         self.strategy = strategy
@@ -29,6 +45,11 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
                                os.cpu_count() // max(torch.cuda.device_count(),1),
                                self.batch_size if self.batch_size > 1 else 0)
         self.pin_memory = data_cfg.pin_memory
+
+        self.model = build_model(architecture)
+        self.loss = build_loss(loss_cfg)
+        self.metric = None if metric_cfg is None else build_metric(metric_cfg)
+
 
     def setup(self, stage=None):
         if stage == 'fit' or stage is None:

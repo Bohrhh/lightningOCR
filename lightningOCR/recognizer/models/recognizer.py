@@ -2,22 +2,23 @@ import torch
 import torch.nn as nn
 
 from lightningOCR.common import BaseLitModule
-from lightningOCR.common import LIGHTNING_MODULE, build_model, build_loss
+from lightningOCR.common import LIGHTNING_MODULE
 from .crnn import CRNN
 
 
 @LIGHTNING_MODULE.register()
 class Recognizer(BaseLitModule):
-    def __init__(self, data_cfg, strategy, architecture, loss_cfg):
-        super(Recognizer, self).__init__(data_cfg, strategy)
-        self.model = build_model(architecture)
-        self.loss = build_loss(loss_cfg)
+    def __init__(self, data_cfg, strategy, architecture, loss_cfg, metric_loss):
+        super(Recognizer, self).__init__(
+            data_cfg, strategy, architecture, loss_cfg, metric_loss
+        )
 
     def training_step(self, batch, batch_idx):
         x = batch['image']
         gt = batch['gt']
         pred = self.model(x)
         loss = self.loss(pred, gt)
+        # metric = self.metric(pred, gt)
 
         # Log and Plot
         for j, para in enumerate(self.optimizers().param_groups):
