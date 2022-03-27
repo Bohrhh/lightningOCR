@@ -3,7 +3,6 @@ import torch.nn as nn
 
 from lightningOCR.common import BaseLitModule
 from lightningOCR.common import LIGHTNING_MODULE
-from .resnet import *
 
 
 @LIGHTNING_MODULE.register()
@@ -12,7 +11,7 @@ class Classifier(BaseLitModule):
         super(Classifier, self).__init__(
             data_cfg, strategy, architecture, loss_cfg, metric_cfg
         )
-        assert self.metric_cfg is not None, 'metric_cfg should be Acc'
+        assert self.metric is not None, 'metric_cfg should be Acc'
         self.register_buffer('train_corrects', torch.tensor(0.0))
         self.register_buffer('train_samples', torch.tensor(0.0))
         self.register_buffer('val_corrects', torch.tensor(0.0))
@@ -31,9 +30,9 @@ class Classifier(BaseLitModule):
         self.log('acc/train', self.train_corrects / self.train_samples, prog_bar=True, logger=False)
         for j, para in enumerate(self.optimizers().param_groups):
             self.log(f'x/lr{j}', para['lr'], prog_bar=False, logger=True)
-        if self.global_rank in [-1, 0] and self.global_step < 3:
+        if self.global_rank in [-1, 0] and self.global_step < 6 and hasattr(self.trainset, 'plot'):
             # do plot
-            pass
+            self.trainset.plot(x, self.logger.log_dir)
 
         return loss
 

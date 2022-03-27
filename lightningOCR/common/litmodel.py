@@ -16,6 +16,7 @@ from .registry import Registry, build_from_cfg
 
 DATASETS = Registry('dataset')
 ARCHITECTURES = Registry('architecture')
+POSTPROCESS = Registry('postprocess')
 
 
 def build_dataset(cfg, default_args=None):
@@ -35,8 +36,20 @@ def build_metric(cfg):
     return build_from_cfg(cfg, METRICS)
 
 
+def build_postprocess(cfg):
+    return build_from_cfg(cfg, POSTPROCESS)
+
+
 class BaseLitModule(LightningModule, metaclass=ABCMeta):
-    def __init__(self, data_cfg, strategy, architecture, loss_cfg, metric_cfg=None):
+    def __init__(
+        self,
+        data_cfg,
+        strategy,
+        architecture,
+        loss_cfg,
+        metric_cfg=None,
+        postprocess_cfg=None
+    ):
         super(BaseLitModule, self).__init__()
         self.data_cfg = data_cfg
         self.strategy = strategy
@@ -49,7 +62,7 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         self.model = build_model(architecture)
         self.loss = build_loss(loss_cfg)
         self.metric = None if metric_cfg is None else build_metric(metric_cfg)
-
+        self.postprocess = None if postprocess_cfg is None else build_postprocess(postprocess_cfg)
 
     def setup(self, stage=None):
         if stage == 'fit' or stage is None:

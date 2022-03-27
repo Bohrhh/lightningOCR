@@ -343,7 +343,14 @@ class CTCHead(nn.Module):
 
 @ARCHITECTURES.register()
 class CRNN(nn.Module):
-    """CTC-loss based recognizer."""
+    """CTC-loss based recognizer.
+    
+    Shape:
+        x (Tensor): shape (N, C, H, W)
+    
+    Return:
+        results (Dict): {'logits': Tensor of shape (N, T, C)}
+    """
     def __init__(self, scale=0.5, encoder_type='rnn', hidden_size=64, mid_channels=96):
         super(CRNN, self).__init__()
         self.backbone = MobileNetV1Enhance(scale = scale)

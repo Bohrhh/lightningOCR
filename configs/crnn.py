@@ -2,24 +2,25 @@
 # data
 dataset_type = 'RecDataset'
 data_root = '../data/icdar2019_lsvt/train/rec'
+character_dict_path = './lightningOCR/common/rec_keys.txt'
 img_norm_cfg = dict(
     mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
 train_pipeline = {'transforms':[
                         dict(type='CTCLabelEncode',
                              max_text_length=25,
-                             character_dict_path='./lightningOCR/common/rec_keys.txt',
+                             character_dict_path=character_dict_path,
                              character_type='ch',
-                             use_space_char=False),
+                             use_space_char=True),
                         dict(type='TextLineResize', height=32, width=320, p=1),
                         dict(type='Normalize', **img_norm_cfg)]}
 
 val_pipeline  =  {'transforms':[
                         dict(type='CTCLabelEncode',
                              max_text_length=25,
-                             character_dict_path='./lightningOCR/common/rec_keys.txt',
+                             character_dict_path=character_dict_path,
                              character_type='ch',
-                             use_space_char=False),
+                             use_space_char=True),
                         dict(type='TextLineResize', height=32, width=320, p=1),
                         dict(type='Normalize', **img_norm_cfg)]}
 
@@ -63,5 +64,11 @@ model = dict(
     architecture=dict(type='CRNN'),
     loss_cfg=dict(type='CTCLoss'),
     strategy=strategy,
-    data_cfg=data
+    data_cfg=data,
+    metric_cfg=dict(type='RecAcc'),
+    postprocess_cfg=dict(
+        type='CTCLabelDecode',
+        character_dict_path=character_dict_path,
+        character_type='ch',
+        use_space_char=True)
 )
