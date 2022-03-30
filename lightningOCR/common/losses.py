@@ -53,8 +53,8 @@ class CTCLoss(nn.Module):
 
     def forward(self, pred, gt):
         logits = pred['logits']
-        targets = gt['targets']
-        target_lengths = gt['target_lengths']
+        targets = gt['target']
+        target_lengths = gt['target_length']
 
         N, T, _ = logits.shape
         x = torch.log_softmax(logits, dim=2)

@@ -1,10 +1,16 @@
 import cv2
 import lmdb
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from torch.utils.data import Dataset
 from abc import ABCMeta, abstractmethod
 
 from lightningOCR.common import Compose, DATASETS, BaseDataset
+from lightningOCR.common.utils import is_chinese
+
+matplotlib.use('Agg')  # for writing to files only
 
 
 @DATASETS.register()
@@ -26,7 +32,8 @@ class RecDataset(BaseDataset):
     def __init__(self,
                  data_root,
                  pipeline,
-                 length=None):
+                 length=None,
+                 fontfile=None):
         super(RecDataset, self).__init__(pipeline)
         if isinstance(data_root, str):
             self.data_root = [data_root]
@@ -51,6 +58,8 @@ class RecDataset(BaseDataset):
         assert self.length<=self.data_idx_order_list.shape[0], \
             "The data number is only {}, but set by {}".format(self.data_idx_order_list.shape[0], self.length)
         
+        self.fontfile = fontfile
+
     def dataset_traversal(self):
         lmdb_num = len(self.lmdb_sets)
         total_sample_num = 0
@@ -88,7 +97,7 @@ class RecDataset(BaseDataset):
         imgbuf, label = sample_info
         img = np.frombuffer(imgbuf, dtype='uint8')
         img = cv2.imdecode(img, 1)
-        return {'image': img, 'label': label}
+        return {'image': img, 'label': label, 'target': label}
 
     def after_pipeline(self, results):
         image = results['image']
@@ -101,11 +110,56 @@ class RecDataset(BaseDataset):
         results = {
             'image': results['image'],
             'gt':{
-                'targets': results['label'],
-                'target_lengths': results['length']
+                'target': results['target'],
+                'target_length': results['length'],
+                'label': results['label']
             }
         }
         return results
 
     def __len__(self):
         return self.length
+
+    def plot_idx(self, idx, out_file):
+        results = self.__getitem__(idx)
+        image = results['image']
+        label = results['gt']['label']
+
+        # reverse normalize
+        image = image.transpose(1,2,0) * np.array(self.std) + np.array(self.mean)
+        image = np.clip(image * 255, 0, 255).astype(np.uint8)
+
+        plt.imshow(image[:,:,::-1])
+        plt.title(label, fontproperties=font_manager.FontProperties(fname=self.fontfile))
+        plt.savefig(out_file, dpi=200, bbox_inches='tight')
+        plt.close()
+
+    def plot_batch(self, batch, out_file):
+        images = batch['image']
+        labels = batch['gt']['label']
+
+        # reverse normalize
+        images = images.cpu().numpy()
+        images = images.transpose(0,2,3,1) * np.array(self.std) + np.array(self.mean)
+        images = np.clip(images * 255, 0, 255).astype(np.uint8)
+        
+        max_subplots = 16
+        bs, h, w, c = images.shape
+        bs = min(bs, max_subplots)  # limit plot images
+        ns = int(np.ceil(bs ** 0.5))  # number of subplots (square)
+
+        plt.subplots(ns, ns)
+        for i, (img, label) in enumerate(zip(images, labels)):
+            if i == max_subplots or i == bs:  # if last batch has fewer images than we expect
+                break
+            plt.subplot(ns, ns, i+1)
+            plt.imshow(img[:,:,::-1])
+            division = 10 if is_chinese(label) else 20
+            length = len(label)
+            label = [label[j*division:(j+1)*division] for j in range((length + division - 1 ) // division)]
+            label = '\n'.join(label)
+            plt.title(label, fontproperties=font_manager.FontProperties(fname=self.fontfile), fontsize=8)
+            plt.xticks([])
+            plt.yticks([])
+        plt.savefig(out_file, dpi=300, bbox_inches='tight')
+        plt.close()

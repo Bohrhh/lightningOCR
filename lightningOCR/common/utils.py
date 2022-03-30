@@ -1,4 +1,6 @@
 import os
+import re
+import contextlib
 from pytorch_lightning.callbacks import TQDMProgressBar
 
 
@@ -58,3 +60,41 @@ def update_cfg(cfg, opt):
     cfg['model']['strategy'] = cfg['strategy']
     cfg['model']['data_cfg'] = cfg['data']
     return cfg
+
+
+def try_except(func):
+    # try-except function. Usage: @try_except decorator
+    def handler(*args, **kwargs):
+        try:
+            func(*args, **kwargs)
+        except Exception as e:
+            print(e)
+
+    return handler
+
+
+class Timeout(contextlib.ContextDecorator):
+    # Usage: @Timeout(seconds) decorator or 'with Timeout(seconds):' context manager
+    def __init__(self, seconds, *, timeout_msg='', suppress_timeout_errors=True):
+        self.seconds = int(seconds)
+        self.timeout_message = timeout_msg
+        self.suppress = bool(suppress_timeout_errors)
+
+    def _timeout_handler(self, signum, frame):
+        raise TimeoutError(self.timeout_message)
+
+    def __enter__(self):
+        if platform.system() != 'Windows':  # not supported on Windows
+            signal.signal(signal.SIGALRM, self._timeout_handler)  # Set handler for SIGALRM
+            signal.alarm(self.seconds)  # start countdown for SIGALRM to be raised
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        if platform.system() != 'Windows':
+            signal.alarm(0)  # Cancel SIGALRM if it's scheduled
+            if self.suppress and exc_type is TimeoutError:  # Suppress TimeoutError
+                return True
+
+
+def is_chinese(s='人工智能'):
+    # Is string composed of any Chinese characters?
+    return True if re.search('[\u4e00-\u9fff]', str(s)) else False

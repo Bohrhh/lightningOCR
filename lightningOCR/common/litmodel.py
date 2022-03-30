@@ -77,19 +77,22 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         return DataLoader(self.trainset,
                           batch_size=self.batch_size,
                           num_workers=self.num_workers,
-                          pin_memory=self.pin_memory)
+                          pin_memory=self.pin_memory,
+                          shuffle=True)
 
     def val_dataloader(self):
         return DataLoader(self.valset,
                           batch_size=2*self.batch_size,
                           num_workers=self.num_workers,
-                          pin_memory=self.pin_memory)
+                          pin_memory=self.pin_memory,
+                          shuffle=False)
 
     def test_dataloader(self):
         return DataLoader(self.testset,
                           batch_size=2*self.batch_size,
                           num_workers=self.num_workers,
-                          pin_memory=self.pin_memory)
+                          pin_memory=self.pin_memory,
+                          shuffle=False)
 
     def forward(self, x):
         return self.model(x)

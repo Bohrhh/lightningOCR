@@ -103,7 +103,7 @@ class CTCLabelDecode(BaseRecLabelDecode):
                                              character_type, use_space_char)
 
     def __call__(self, preds, gt=None, *args, **kwargs):
-        label = None if gt is None else gt['targets'].cpu().numpy()
+        label = None if gt is None else gt['target'].cpu().numpy()
         logits = preds['logits'].detach()
         logits = torch.softmax(logits, dim=2)
         preds_prob, preds_idx = torch.max(logits, dim=2)

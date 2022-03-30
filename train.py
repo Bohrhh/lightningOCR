@@ -37,6 +37,8 @@ def parse_opt():
                         help='use SyncBatchNorm, only available in DDP mode')
     parser.add_argument('--resume',         type=str,  default=None,
                         help='resume model from file')
+    parser.add_argument('--val-period',     type=int,  default=1,
+                        help='resume model from file')
     opt = parser.parse_known_args()[0]
     return opt
 
@@ -90,7 +92,8 @@ def main():
         precision=16 if opt.fp16 else 32,
         deterministic=False if opt.seed is None else True,
         benchmark=True if opt.seed is None else False,
-        strategy='ddp' if gpus > 1 else None
+        strategy='ddp' if gpus > 1 else None,
+        check_val_every_n_epoch=opt.val_period
     )
     trainer.fit(lmodel)
 

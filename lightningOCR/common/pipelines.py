@@ -144,13 +144,13 @@ class CTCLabelEncode(BaseRecLabelEncode):
     def __call__(self, *args, force_apply=False, **kwargs):
         if args:
             raise KeyError("You have to pass data to augmentations as named arguments, for example: aug(image=image)")
-        text = kwargs['label']
+        text = kwargs['target']
         text = self.encode(text)
         if text is None:
             return None
         kwargs['length'] = np.array(len(text))
         text = text + [0] * (self.max_text_len - len(text))
-        kwargs['label'] = np.array(text)
+        kwargs['target'] = np.array(text)
         return kwargs
 
     def add_special_char(self, dict_character):

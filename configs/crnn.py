@@ -3,6 +3,8 @@
 dataset_type = 'RecDataset'
 data_root = '../data/icdar2019_lsvt/train/rec'
 character_dict_path = './lightningOCR/common/rec_keys.txt'
+fontfile = './lightningOCR/common/Arial.Unicode.ttf'
+
 img_norm_cfg = dict(
     mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
@@ -33,12 +35,14 @@ data = dict(
         type=dataset_type,
         data_root=data_root,
         pipeline=train_pipeline,
-        length=None),
+        length=None,
+        fontfile=fontfile),
     val=dict(
         type=dataset_type,
         data_root=data_root,
         pipeline=val_pipeline,
-        length=None),
+        length=None,
+        fontfile=fontfile),
     test=dict(
         type=dataset_type,
         data_root=data_root,
