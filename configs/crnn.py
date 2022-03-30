@@ -14,6 +14,7 @@ train_pipeline = {'transforms':[
                              character_dict_path=character_dict_path,
                              character_type='ch',
                              use_space_char=True),
+                        dict(type='RecTIA', p=0.8),
                         dict(type='TextLineResize', height=32, width=320, p=1),
                         dict(type='Normalize', **img_norm_cfg)]}
 

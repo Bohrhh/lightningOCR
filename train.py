@@ -90,7 +90,7 @@ def main():
         callbacks=[bar],
         sync_batchnorm=opt.sync_bn and gpus > 1,
         precision=16 if opt.fp16 else 32,
-        deterministic=False if opt.seed is None else True,
+        deterministic=False if opt.seed is None or cfg.model.loss_cfg.type=='CTCLoss' else True,
         benchmark=True if opt.seed is None else False,
         strategy='ddp' if gpus > 1 else None,
         check_val_every_n_epoch=opt.val_period
