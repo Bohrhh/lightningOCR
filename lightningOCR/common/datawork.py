@@ -67,9 +67,11 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
                                  pipeline.get('bbox_params'), 
                                  pipeline.get('keypoint_params'),
                                  pipeline.get('additional_targets'))
-        if pipeline['transforms'][-1].type=='Normalize':
-            self.mean = self.pipeline.transforms[-1].mean
-            self.std  = self.pipeline.transforms[-1].std
+        
+        if 'Normalize' in [i.type for i in pipeline['transforms']]:
+            idx = [i.type for i in pipeline['transforms']].index('Normalize')
+            self.mean = self.pipeline.transforms[idx].mean
+            self.std  = self.pipeline.transforms[idx].std
         else:
             self.mean = 0
             self.std  = 1

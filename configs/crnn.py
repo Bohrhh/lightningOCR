@@ -6,7 +6,7 @@ character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
 
 img_norm_cfg = dict(
-    mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
+    mean=(0.5, 0.5, 0.5), std=(0.5, 0.5, 0.5))
 
 train_pipeline = {'transforms':[
                         dict(type='CTCLabelEncode',
@@ -15,8 +15,8 @@ train_pipeline = {'transforms':[
                              character_type='ch',
                              use_space_char=True),
                         dict(type='RecTIA', p=0.8),
-                        dict(type='TextLineResize', height=32, width=320, p=1),
-                        dict(type='Normalize', **img_norm_cfg)]}
+                        dict(type='Normalize', **img_norm_cfg),
+                        dict(type='TextLineResize', height=32, width=320, p=1)]}
 
 val_pipeline  =  {'transforms':[
                         dict(type='CTCLabelEncode',
@@ -24,8 +24,8 @@ val_pipeline  =  {'transforms':[
                              character_dict_path=character_dict_path,
                              character_type='ch',
                              use_space_char=True),
-                        dict(type='TextLineResize', height=32, width=320, p=1),
-                        dict(type='Normalize', **img_norm_cfg)]}
+                        dict(type='Normalize', **img_norm_cfg),
+                        dict(type='TextLineResize', height=32, width=320, p=1)]}
 
 test_pipeline =  {'transforms':[ 
                         dict(type='Normalize', **img_norm_cfg)]}
@@ -70,10 +70,16 @@ model = dict(
     loss_cfg=dict(type='CTCLoss'),
     strategy=strategy,
     data_cfg=data,
-    metric_cfg=dict(type='RecAcc'),
+    metric_cfg=dict(type='RecF1'),
     postprocess_cfg=dict(
         type='CTCLabelDecode',
         character_dict_path=character_dict_path,
         character_type='ch',
         use_space_char=True)
 )
+
+
+# ========================
+# callbacks
+
+ckpt = dict(monitor='acc/val' if model['metric_cfg']['type'] == 'RecAcc' else 'f1/val', mode='max')

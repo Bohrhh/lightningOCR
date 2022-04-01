@@ -1,3 +1,4 @@
+import difflib
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -55,3 +56,35 @@ class RecAcc(nn.Module):
             if i == j:
                 corrects += 1
         return corrects, batch_num
+
+
+@METRICS.register()
+class RecF1(nn.Module):
+    """
+    Args:
+        pred: {'text': List of text}
+        gt: {'text': List of text}
+
+    Returns:
+        match_chars
+        gt_chars
+        pred_chars
+    """
+    def __init__(self):
+        super(RecF1, self).__init__()
+
+    def forward(self, pred, gt):
+        pred_text = pred['text']
+        gt_text = gt['text']
+        assert len(pred_text) == len(gt_text)
+
+        match_chars = 0
+        gt_chars = 0 
+        pred_chars = 0
+
+        for (i, j) in zip(gt_text, pred_text):
+            matchs = difflib.SequenceMatcher(a=i, b=j).get_matching_blocks()
+            match_chars += sum([k.size for k in matchs])
+            gt_chars += len(i)
+            pred_chars += len(j)
+        return match_chars, gt_chars, pred_chars
