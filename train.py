@@ -12,7 +12,7 @@ from lightningOCR.common import build_lightning_model
 from lightningOCR.common.utils import intersect_dicts, update_cfg
 
 
-def parse_opt():
+def parse_opt(known=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode',           type=str,  choices=['train', 'val', 'test'], default='train',
                         help='program mode')
@@ -30,8 +30,6 @@ def parse_opt():
                         help='optimizer')
     parser.add_argument('--seed',           type=int,  default=None,
                         help='random seed')
-    parser.add_argument('--project',        type=str,  default='../runs/train',
-                        help='save to project/name')
     parser.add_argument('--name',           type=str,  default='cls',
                         help='save to project/name')
     parser.add_argument('--fp16',           action='store_true',
@@ -42,7 +40,8 @@ def parse_opt():
                         help='resume model from file')
     parser.add_argument('--val-period',     type=int,  default=1,
                         help='resume model from file')
-    opt = parser.parse_known_args()[0]
+    
+    opt = parser.parse_known_args()[0] if known else parser.parse_args()
     return opt
 
 
@@ -52,7 +51,6 @@ def main():
     # parse args
     opt = parse_opt()
     opt.cfg = 'configs/crnn.py'
-    # opt.weights = 'pretrained/ch_ptocr_v2_rec_infer.pth'
     cfg = Config.fromfile(opt.cfg)
     cfg = update_cfg(cfg, opt)
 

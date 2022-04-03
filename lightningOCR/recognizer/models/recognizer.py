@@ -41,6 +41,14 @@ class Recognizer(BaseLitModule):
         results = self.postprocess(x)
         return results
 
+    def log_f1(self, match_chars, gt_chars, pred_chars, mode, prog_bar, logger):
+        precision = match_chars / pred_chars
+        recall = match_chars / gt_chars
+        f1 = 2 * precision * recall / (precision + recall + 1e-8)
+        self.log(f'precision/{mode}', precision, prog_bar=prog_bar, logger=logger)
+        self.log(f'recall/{mode}', recall, prog_bar=prog_bar, logger=logger)
+        self.log(f'f1/{mode}', f1, prog_bar=prog_bar, logger=logger)
+
     def training_step(self, batch, batch_idx):
         x = batch['image']
         gt = batch['gt']
@@ -59,12 +67,7 @@ class Recognizer(BaseLitModule):
             self.train_corrects += match_chars
             self.train_gt_samples += gt_chars
             self.train_pred_samples += pred_chars
-            precision = self.train_corrects / self.train_pred_samples
-            recall = self.train_corrects / self.train_gt_samples
-            f1 = 2 * precision * recall / (precision + recall)
-            self.log('precision/train', precision, prog_bar=True, logger=False)
-            self.log('recall/train', recall, prog_bar=True, logger=False)
-            self.log('f1/train', f1, prog_bar=True, logger=False)
+            self.log_f1(self.train_corrects, self.train_gt_samples, self.train_pred_samples, 'train', True, False)
         # Log and Plot
         for j, para in enumerate(self.optimizers().param_groups):
             self.log(f'x/lr{j}', para['lr'], prog_bar=False, logger=True)
@@ -81,12 +84,7 @@ class Recognizer(BaseLitModule):
         if isinstance(self.metric, RecAcc):
             self.log('acc/train', train_corrects.sum() / train_gt_samples.sum(), prog_bar=False, logger=True)
         else:
-            precision = train_corrects.sum() / train_pred_samples.sum()
-            recall = train_corrects.sum() / train_gt_samples.sum()
-            f1 = 2 * precision * recall / (precision + recall)
-            self.log('precision/train', precision, prog_bar=False, logger=True)
-            self.log('recall/train', recall, prog_bar=False, logger=True)
-            self.log('f1/train', f1, prog_bar=False, logger=True)
+            self.log_f1(train_corrects.sum(), train_gt_samples.sum(), train_pred_samples.sum(), 'train', False, True)
         self.train_corrects.zero_()
         self.train_gt_samples.zero_()
         self.train_pred_samples.zero_()
@@ -114,12 +112,8 @@ class Recognizer(BaseLitModule):
         if isinstance(self.metric, RecAcc):
             self.log('acc/val', val_corrects.sum() / val_gt_samples.sum(), prog_bar=True, logger=True, rank_zero_only=True)
         else:
-            precision = val_corrects.sum() / val_pred_samples.sum()
-            recall = val_corrects.sum() / val_gt_samples.sum()
-            f1 = 2 * precision * recall / (precision + recall)
-            self.log('precision/train', precision, prog_bar=True, logger=True, rank_zero_only=True)
-            self.log('recall/train', recall, prog_bar=True, logger=True, rank_zero_only=True)
-            self.log('f1/train', f1, prog_bar=True, logger=True, rank_zero_only=True)
+            self.log_f1(val_corrects.sum(), val_gt_samples.sum(), val_pred_samples.sum(), 'val', True, True)
+
         self.val_corrects.zero_()
         self.val_gt_samples.zero_()
         self.val_pred_samples.zero_()
