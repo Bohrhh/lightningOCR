@@ -1,3 +1,4 @@
+import os
 import torch
 import torch.nn as nn
 
@@ -7,7 +8,14 @@ from lightningOCR.common import LIGHTNING_MODULE
 
 @LIGHTNING_MODULE.register()
 class Classifier(BaseLitModule):
-    def __init__(self, data_cfg, strategy, architecture, loss_cfg, metric_cfg):
+    def __init__(
+        self,
+        data_cfg,
+        strategy,
+        architecture,
+        loss_cfg,
+        metric_cfg
+    ):
         super(Classifier, self).__init__(
             data_cfg, strategy, architecture, loss_cfg, metric_cfg
         )
@@ -30,9 +38,10 @@ class Classifier(BaseLitModule):
         self.log('acc/train', self.train_corrects / self.train_samples, prog_bar=True, logger=False)
         for j, para in enumerate(self.optimizers().param_groups):
             self.log(f'x/lr{j}', para['lr'], prog_bar=False, logger=True)
-        if self.global_rank in [-1, 0] and self.global_step < 6 and hasattr(self.trainset, 'plot'):
+        if self.global_rank in [-1, 0] and self.global_step < 6 and hasattr(self.trainset, 'plot_batch'):
             # do plot
-            self.trainset.plot(x, self.logger.log_dir)
+            os.makedirs(self.logger.log_dir, exist_ok=True)
+            self.trainset.plot_batch(batch, os.path.join(self.logger.log_dir, f'train_batch_{self.global_step}.jpg'))
 
         return loss
 

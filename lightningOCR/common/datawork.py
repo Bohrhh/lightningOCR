@@ -125,12 +125,16 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
 
         results  = self.load_data(idx)
         results  = self.before_pipeline(results)
-        try:
-            results  = self.pipeline(results)
-            results  = self.after_pipeline(results)
-            results  = self.gather(results)
-        except:
-            results = None
+        # try:
+        #     results  = self.pipeline(results)
+        #     results  = self.after_pipeline(results)
+        #     results  = self.gather(results)
+        # except:
+        #     results = None
+
+        results  = self.pipeline(results)
+        results  = self.after_pipeline(results)
+        results  = self.gather(results)
 
         if results is None:
             return self.__getitem__(np.random.randint(self.__len__()))

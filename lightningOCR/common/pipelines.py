@@ -18,12 +18,12 @@ class ClsRotate180(A.BasicTransform):
     @property
     def targets(self):
         return {"image": self.apply,
-                "label": self.apply_to_label}
+                "target": self.apply_to_target}
     
     def apply(self, image, **params):
         return cv2.rotate(image, cv2.ROTATE_180)
 
-    def apply_to_label(self, label, **params):
+    def apply_to_target(self, target, **params):
         return 1
 
 

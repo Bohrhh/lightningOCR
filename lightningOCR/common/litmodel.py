@@ -53,8 +53,8 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         super(BaseLitModule, self).__init__()
         self.data_cfg = data_cfg
         self.strategy = strategy
-        self.batch_size = data_cfg.batch_size_per_gpu
-        self.num_workers = min(data_cfg.workers_per_gpu,
+        self.batch_size = data_cfg.batch_size_per_device
+        self.num_workers = min(data_cfg.workers_per_device,
                                os.cpu_count() // max(torch.cuda.device_count(),1),
                                self.batch_size if self.batch_size > 1 else 0)
         self.pin_memory = data_cfg.pin_memory
@@ -68,6 +68,9 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         if stage == 'fit' or stage is None:
             self.trainset = build_dataset(self.data_cfg.train)
             self.trainset_size = len(self.trainset)
+            self.valset = build_dataset(self.data_cfg.val)
+            self.valset_size = len(self.valset)
+        if stage == 'validate':
             self.valset = build_dataset(self.data_cfg.val)
             self.valset_size = len(self.valset)
         if stage == 'test' or stage is None:
@@ -102,8 +105,6 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         pass
 
     def configure_optimizers(self):
-        
-        gpus = self.strategy['gpus']
         epochs = self.strategy['epochs']
         warmup_epochs = self.strategy['warmup_epochs']
         lr0 = self.strategy['lr0']

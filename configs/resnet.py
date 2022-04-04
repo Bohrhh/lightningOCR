@@ -1,7 +1,7 @@
 # ========================
 # data
 dataset_type = 'ClsDataset'
-data_root = '../data/icdar2019_lsvt/train/rec'
+data_root = '../data/document/train/rec'
 img_norm_cfg = dict(
     mean=(0.485, 0.456, 0.406), std=(0.229, 0.224, 0.225))
 
@@ -18,8 +18,6 @@ test_pipeline =  {'transforms':[
                       dict(type='Normalize', **img_norm_cfg)]}
 
 data = dict(
-    batch_size_per_gpu=128,
-    workers_per_gpu=16,
     pin_memory=True,
     train=dict(
         type=dataset_type,
@@ -40,8 +38,6 @@ data = dict(
 # ========================
 # strategy
 strategy = dict(
-    gpus=1,
-    epochs=10,
     warmup_epochs=3,
     lr0=0.01,
     lrf=0.1,
@@ -59,5 +55,11 @@ model = dict(
     loss_cfg=dict(type='CrossEntropyLoss'),
     strategy=strategy,
     data_cfg=data,
-    metric_cfg=dict(type='Acc')
+    metric_cfg=dict(type='ClsAcc')
 )
+
+
+# ========================
+# callbacks
+
+ckpt = dict(monitor='acc/val', mode='max')

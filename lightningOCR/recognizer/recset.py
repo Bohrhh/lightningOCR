@@ -40,6 +40,19 @@ class RecDataset(BaseDataset):
         else:
             self.data_root = data_root
 
+        num_samples = 0
+        for i, root in enumerate(self.data_root):
+            with lmdb.open(root) as env:
+                txn = env.begin(write=False)
+                num_samples += int(txn.get('num-samples'.encode()))
+
+        self.length = num_samples if length is None else length
+        assert self.length <= num_samples, \
+            "The data number is only {}, but set by {}".format(num_samples, self.length)
+
+        self.fontfile = fontfile
+    
+    def open_lmdb(self):
         # load lmdb data
         self.lmdb_sets = {}
         for i, root in enumerate(self.data_root):
@@ -53,12 +66,6 @@ class RecDataset(BaseDataset):
             num_samples = int(txn.get('num-samples'.encode()))
             self.lmdb_sets[i] = {"dirpath":root, "env":env, "txn":txn, "num_samples":num_samples}
         self.data_idx_order_list = self.dataset_traversal()
-
-        self.length = self.data_idx_order_list.shape[0] if length is None else length
-        assert self.length<=self.data_idx_order_list.shape[0], \
-            "The data number is only {}, but set by {}".format(self.data_idx_order_list.shape[0], self.length)
-        
-        self.fontfile = fontfile
 
     def dataset_traversal(self):
         lmdb_num = len(self.lmdb_sets)
@@ -88,6 +95,8 @@ class RecDataset(BaseDataset):
         return imgbuf, label
 
     def load_data(self, idx):
+        if not hasattr(self, 'lmdb_sets'):
+            self.open_lmdb()
         lmdb_idx, file_idx = self.data_idx_order_list[idx]
         lmdb_idx = int(lmdb_idx)
         file_idx = int(file_idx)
@@ -150,7 +159,7 @@ class RecDataset(BaseDataset):
 
         plt.subplots(ns, ns)
         for i, (img, label) in enumerate(zip(images, labels)):
-            if i == max_subplots or i == bs:  # if last batch has fewer images than we expect
+            if i == bs:  # if last batch has fewer images than we expect
                 break
             plt.subplot(ns, ns, i+1)
             plt.imshow(img[:,:,::-1])

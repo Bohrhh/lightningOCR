@@ -1,7 +1,7 @@
 # ========================
 # data
 dataset_type = 'RecDataset'
-data_root = '../data/icdar2019_lsvt/train/rec'
+data_root = '../data/document/train/rec'
 character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
 

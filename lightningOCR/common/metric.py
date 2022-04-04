@@ -8,22 +8,22 @@ METRICS = Registry('metric')
 
 
 @METRICS.register()
-class Acc(nn.Module):
+class ClsAcc(nn.Module):
     """
     Args:
         pred: {'logits': Tensor}, tensor shape (N,classes)
-        gt: {'targets': Tensor} tensor shape (N,)
+        gt: {'target': Tensor} tensor shape (N,)
 
     Returns:
         corrects : correct number
         batch_num : batch number
     """
     def __init__(self):
-        super(Acc, self).__init__()
+        super(ClsAcc, self).__init__()
 
     def forward(self, pred, gt):
         logits = pred['logits']
-        labels = gt['targets']
+        labels = gt['target']
         _, pred_labels = torch.max(logits, dim=1)
         if len(labels.shape) > 1:
             _, labels = labels.max(dim=1)

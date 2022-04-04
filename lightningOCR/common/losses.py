@@ -14,7 +14,7 @@ class CrossEntropyLoss(nn.Module):
     
     def forward(self, pred, gt):
         logits = pred['logits']
-        targets = gt['targets']
+        targets = gt['target']
         loss = self.loss_fun(logits, targets)
         return loss
 

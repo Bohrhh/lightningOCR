@@ -20,9 +20,10 @@ def parse_opt(known=False):
                         help='train config file path')
     parser.add_argument('--weights',        type=str,  default='',
                         help='initial weights path')
-    parser.add_argument('--gpus',           type=int,  default=1),
+    parser.add_argument('--accelerator',    type=str,  default='gpu'),
+    parser.add_argument('--devices',        type=int,  default=1),
     parser.add_argument('--epochs',         type=int,  default=10),
-    parser.add_argument('--batch-size',     type=int,  default=64,
+    parser.add_argument('--batch-size',     type=int,  default=8,
                         help='batch size per gpu')
     parser.add_argument('--workers',        type=int,  default=8,
                         help='max dataloader workers (per RANK in DDP mode)')
@@ -50,20 +51,19 @@ def main():
     # =============================================
     # parse args
     opt = parse_opt()
-    opt.cfg = 'configs/crnn.py'
+    opt.cfg = 'configs/resnet.py'
     cfg = Config.fromfile(opt.cfg)
     cfg = update_cfg(cfg, opt)
 
     if opt.seed is not None:
         pl.seed_everything(opt.seed, workers=True)
-    gpus = cfg['strategy']['gpus']
+    devices = cfg['strategy']['devices']
     epochs = cfg['strategy']['epochs']
-    batch_size_per_gpu = cfg['data']['batch_size_per_gpu']
-    batch_size_total = batch_size_per_gpu * gpus
+    batch_size_per_device = cfg['data']['batch_size_per_device']
+    batch_size_total = batch_size_per_device * devices
 
     project = f'../runs/{opt.mode}'
     tb_logger = loggers.TensorBoardLogger(save_dir=project, name=opt.name)
-
 
     # =============================================
     # build lightning model
@@ -86,16 +86,17 @@ def main():
     # =============================================
     # build trainer
     trainer = Trainer(
-        gpus=gpus,
+        accelerator=opt.accelerator,
+        devices=devices,
         max_epochs=epochs,
         max_steps=(lmodel.trainset_size + batch_size_total - 1) // batch_size_total * epochs,
         logger=tb_logger,
         callbacks=[bar, checkpoint],
-        sync_batchnorm=opt.sync_bn and gpus > 1,
+        sync_batchnorm=opt.sync_bn and devices > 1,
         precision=16 if opt.fp16 else 32,
         deterministic=False if opt.seed is None or cfg.model.loss_cfg.type=='CTCLoss' else True,
         benchmark=True if opt.seed is None else False,
-        strategy='ddp' if gpus > 1 else None,
+        strategy='ddp' if devices > 1 else None,
         check_val_every_n_epoch=opt.val_period
     )
 

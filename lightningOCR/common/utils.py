@@ -48,11 +48,12 @@ def intersect_dicts(da, db, exclude=()):
 
 def update_cfg(cfg, opt):
     # update data
-    cfg['data']['batch_size_per_gpu'] = opt.batch_size
-    cfg['data']['workers_per_gpu'] = min([opt.workers, os.cpu_count() // max(opt.gpus, 1), opt.batch_size])
+    cfg['data']['batch_size_per_device'] = opt.batch_size
+    cfg['data']['workers_per_device'] = min([opt.workers, os.cpu_count() // max(opt.devices, 1), opt.batch_size])
 
     # update strategy
-    cfg['strategy']['gpus'] = opt.gpus
+    cfg['strategy']['devices'] = opt.devices
+    cfg['strategy']['accelerator'] = opt.accelerator
     cfg['strategy']['epochs'] = opt.epochs
     cfg['strategy']['optim'] = opt.optim
 

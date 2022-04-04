@@ -1,10 +1,15 @@
 import cv2
 import lmdb
 import numpy as np
+import matplotlib
+import matplotlib.pyplot as plt
+from matplotlib import font_manager
 from torch.utils.data import Dataset
 from abc import ABCMeta, abstractmethod
 
 from lightningOCR.common import Compose, DATASETS, BaseDataset
+
+matplotlib.use('Agg')  # for writing to files only
 
 
 @DATASETS.register()
@@ -33,6 +38,17 @@ class ClsDataset(BaseDataset):
         else:
             self.data_root = data_root
 
+        num_samples = 0
+        for i, root in enumerate(self.data_root):
+            with lmdb.open(root) as env:
+                txn = env.begin(write=False)
+                num_samples += int(txn.get('num-samples'.encode()))
+
+        self.length = num_samples if length is None else length
+        assert self.length <= num_samples, \
+            "The data number is only {}, but set by {}".format(num_samples, self.length)
+
+    def open_lmdb(self):
         # load lmdb data
         self.lmdb_sets = {}
         for i, root in enumerate(self.data_root):
@@ -46,11 +62,7 @@ class ClsDataset(BaseDataset):
             num_samples = int(txn.get('num-samples'.encode()))
             self.lmdb_sets[i] = {"dirpath":root, "env":env, "txn":txn, "num_samples":num_samples}
         self.data_idx_order_list = self.dataset_traversal()
-        
-        self.length = self.data_idx_order_list.shape[0] if length is None else length
-        assert self.length<=self.data_idx_order_list.shape[0], \
-            "The data number is only {}, but set by {}".format(self.data_idx_order_list.shape[0], self.length)
-        
+
     def dataset_traversal(self):
         lmdb_num = len(self.lmdb_sets)
         total_sample_num = 0
@@ -79,6 +91,8 @@ class ClsDataset(BaseDataset):
         return imgbuf, label
 
     def load_data(self, idx):
+        if not hasattr(self, 'lmdb_sets'):
+            self.open_lmdb()
         lmdb_idx, file_idx = self.data_idx_order_list[idx]
         lmdb_idx = int(lmdb_idx)
         file_idx = int(file_idx)
@@ -88,7 +102,7 @@ class ClsDataset(BaseDataset):
         imgbuf, label = sample_info
         img = np.frombuffer(imgbuf, dtype='uint8')
         img = cv2.imdecode(img, 1)
-        return {'image': img, 'label': 0}
+        return {'image': img, 'target': 0}
 
     def after_pipeline(self, results):
         image = results['image']
@@ -101,10 +115,52 @@ class ClsDataset(BaseDataset):
         results = {
             'image': results['image'],
             'gt':{
-                'targets': results.get('label')
+                'target': results.get('target')
             }
         }
         return results
 
     def __len__(self):
         return self.length
+
+    def plot_idx(self, idx, out_file):
+        results = self.__getitem__(idx)
+        image = results['image']
+        label = results['gt']['target']
+
+        # reverse normalize
+        image = image.transpose(1,2,0) * np.array(self.std) + np.array(self.mean)
+        image = np.clip(image * 255, 0, 255).astype(np.uint8)
+
+        plt.imshow(image[:,:,::-1])
+        plt.title(label)
+        plt.savefig(out_file, dpi=200, bbox_inches='tight')
+        plt.close()
+        return label
+
+    def plot_batch(self, batch, out_file):
+        images = batch['image']
+        labels = batch['gt']['target']
+
+        # reverse normalize
+        images = images.cpu().numpy()
+        images = images.transpose(0,2,3,1) * np.array(self.std) + np.array(self.mean)
+        images = np.clip(images * 255, 0, 255).astype(np.uint8)
+        labels = labels.cpu().numpy()
+        
+        max_subplots = 16
+        bs, h, w, c = images.shape
+        bs = min(bs, max_subplots)  # limit plot images
+        ns = int(np.ceil(bs ** 0.5))  # number of subplots (square)
+
+        plt.subplots(ns, ns)
+        for i, (img, label) in enumerate(zip(images, labels)):
+            if i == bs:  # if last batch has fewer images than we expect
+                break
+            plt.subplot(ns, ns, i+1)
+            plt.imshow(img[:,:,::-1])
+            plt.title(label, fontsize=8)
+            plt.xticks([])
+            plt.yticks([])
+        plt.savefig(out_file, dpi=300, bbox_inches='tight')
+        plt.close()

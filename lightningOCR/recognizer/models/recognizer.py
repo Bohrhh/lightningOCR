@@ -73,6 +73,7 @@ class Recognizer(BaseLitModule):
             self.log(f'x/lr{j}', para['lr'], prog_bar=False, logger=True)
         if self.global_rank in [-1, 0] and self.global_step < 6 and hasattr(self.trainset, 'plot_batch'):
             # do plot
+            os.makedirs(self.logger.log_dir, exist_ok=True)
             self.trainset.plot_batch(batch, os.path.join(self.logger.log_dir, f'train_batch_{self.global_step}.jpg'))
 
         return loss
