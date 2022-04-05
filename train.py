@@ -9,38 +9,44 @@ from lightningOCR import classifier
 from lightningOCR import recognizer
 from lightningOCR.common import Config, LitProgressBar
 from lightningOCR.common import build_lightning_model
-from lightningOCR.common.utils import intersect_dicts, update_cfg
+from lightningOCR.common.utils import intersect_dicts, update_cfg, colorstr
 
 
 def parse_opt(known=False):
     parser = argparse.ArgumentParser()
-    parser.add_argument('--mode',           type=str,  choices=['train', 'val', 'test'], default='train',
+    parser.add_argument('--mode',           type=str,   choices=['train', 'val', 'test'], default='train',
                         help='program mode')
-    parser.add_argument('--cfg',            type=str,  default='configs/resnet.py',
+    parser.add_argument('--cfg',            type=str,   default='configs/resnet.py',
                         help='train config file path')
-    parser.add_argument('--weights',        type=str,  default='',
+    parser.add_argument('--weights',        type=str,   default='',
                         help='initial weights path')
-    parser.add_argument('--accelerator',    type=str,  default='gpu'),
-    parser.add_argument('--devices',        type=int,  default=1),
-    parser.add_argument('--epochs',         type=int,  default=10),
-    parser.add_argument('--batch-size',     type=int,  default=8,
-                        help='batch size per gpu')
-    parser.add_argument('--workers',        type=int,  default=8,
+    parser.add_argument('--accelerator',    type=str,   default='gpu'),
+    parser.add_argument('--devices',        type=int,   default=1),
+    parser.add_argument('--epochs',         type=int,   default=10),
+    parser.add_argument('--lr',             type=float, default=0.01,
+                        help='max learning rate during training'),
+    parser.add_argument('--batch-size',     type=int,   default=64,
+                        help='batch size per device (gpu)')
+    parser.add_argument('--workers',        type=int,   default=8,
                         help='max dataloader workers (per RANK in DDP mode)')
-    parser.add_argument('--optim',          type=str,  choices=['SGD', 'Adam', 'AdamW'], default='SGD',
+    parser.add_argument('--optim',          type=str,   choices=['SGD', 'Adam', 'AdamW'], default='SGD',
                         help='optimizer')
-    parser.add_argument('--seed',           type=int,  default=None,
+    parser.add_argument('--seed',           type=int,   default=None,
                         help='random seed')
-    parser.add_argument('--name',           type=str,  default='cls',
+    parser.add_argument('--name',           type=str,   default='cls',
                         help='save to project/name')
     parser.add_argument('--fp16',           action='store_true',
                         help='use fp16')
     parser.add_argument('--sync-bn',        action='store_true',
                         help='use SyncBatchNorm, only available in DDP mode')
-    parser.add_argument('--resume',         type=str,  default=None,
+    parser.add_argument('--resume',         type=str,   default=None,
                         help='resume model from file')
-    parser.add_argument('--val-period',     type=int,  default=1,
+    parser.add_argument('--val-period',     type=int,   default=1,
                         help='resume model from file')
+    parser.add_argument('--noval',          action='store_true',
+                        help='only validate final epoch')
+    parser.add_argument('--nosave',         action='store_true',
+                        help='do not save checkpoint')
     
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
     return opt
@@ -51,7 +57,7 @@ def main():
     # =============================================
     # parse args
     opt = parse_opt()
-    opt.cfg = 'configs/resnet.py'
+    opt.cfg = 'configs/crnn.py'
     cfg = Config.fromfile(opt.cfg)
     cfg = update_cfg(cfg, opt)
 
@@ -64,6 +70,7 @@ def main():
 
     project = f'../runs/{opt.mode}'
     tb_logger = loggers.TensorBoardLogger(save_dir=project, name=opt.name)
+    print(f'Results saved to {colorstr("bold", tb_logger.log_dir)}')
 
     # =============================================
     # build lightning model
@@ -81,7 +88,7 @@ def main():
     # =============================================
     # callbacks
     bar = LitProgressBar()
-    checkpoint = ModelCheckpoint(**cfg.ckpt, save_last=True)
+    checkpoint = ModelCheckpoint(**cfg.ckpt, save_last=not opt.nosave)
 
     # =============================================
     # build trainer
@@ -97,7 +104,7 @@ def main():
         deterministic=False if opt.seed is None or cfg.model.loss_cfg.type=='CTCLoss' else True,
         benchmark=True if opt.seed is None else False,
         strategy='ddp' if devices > 1 else None,
-        check_val_every_n_epoch=opt.val_period
+        check_val_every_n_epoch= epochs+1 if opt.noval else opt.val_period,
     )
 
     if opt.mode == 'train':

@@ -54,7 +54,6 @@ data = dict(
 # strategy
 strategy = dict(
     warmup_epochs=3,
-    lr0=0.01,
     lrf=0.1,
     momentum=0.937,
     weight_decay=0.0005,

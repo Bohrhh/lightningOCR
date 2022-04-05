@@ -55,6 +55,7 @@ def update_cfg(cfg, opt):
     cfg['strategy']['devices'] = opt.devices
     cfg['strategy']['accelerator'] = opt.accelerator
     cfg['strategy']['epochs'] = opt.epochs
+    cfg['strategy']['lr0'] = opt.lr
     cfg['strategy']['optim'] = opt.optim
 
     # update lightning model

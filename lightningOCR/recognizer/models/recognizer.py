@@ -42,8 +42,8 @@ class Recognizer(BaseLitModule):
         return results
 
     def log_f1(self, match_chars, gt_chars, pred_chars, mode, prog_bar, logger):
-        precision = match_chars / pred_chars
-        recall = match_chars / gt_chars
+        precision = match_chars / (pred_chars + 1e-8)
+        recall = match_chars / (gt_chars + 1e-8)
         f1 = 2 * precision * recall / (precision + recall + 1e-8)
         self.log(f'precision/{mode}', precision, prog_bar=prog_bar, logger=logger)
         self.log(f'recall/{mode}', recall, prog_bar=prog_bar, logger=logger)
