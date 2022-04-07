@@ -10,6 +10,9 @@ PIPELINES = Registry('pipeline')
 
 
 PIPELINES.register(name='Normalize', obj=A.Normalize)
+PIPELINES.register(name='ColorJitter', obj=A.ColorJitter)
+PIPELINES.register(name='GaussianBlur', obj=A.GaussianBlur)
+PIPELINES.register(name='GaussNoise', obj=A.GaussNoise)
 
 
 @PIPELINES.register()
@@ -407,22 +410,27 @@ def tia_perspective(src):
     return dst
 
 
-def get_crop(image):
+def get_crop_pad(image):
     """
-    random crop
+    random crop or pad
     """
     h, w, _ = image.shape
-    top_min = 1
-    top_max = 8
-    top_crop = int(random.randint(top_min, top_max))
-    top_crop = min(top_crop, h - 1)
-    crop_img = image.copy()
-    ratio = random.randint(0, 1)
-    if ratio:
-        crop_img = crop_img[top_crop:h, :, :]
+    pixel_min = 1
+    pixel_max = 8
+    pixel = int(random.randint(pixel_min, pixel_max))
+    pixel = min(pixel, h - 1)
+
+    img_copy = image.copy()
+    ratio = random.randint(0, 3)
+    if ratio == 0:
+        img_result = img_copy[pixel:h, :, :]
+    elif ratio == 1:
+        img_result = img_copy[0:h - pixel, :, :]
+    elif ratio == 3:
+        img_result = np.pad(img_copy, ((0,pixel),(0,0),(0,0)), mode='edge')
     else:
-        crop_img = crop_img[0:h - top_crop, :, :]
-    return crop_img
+        img_result = np.pad(img_copy, ((pixel,0),(0,0),(0,0)), mode='edge')
+    return img_result
 
 
 @PIPELINES.register()
@@ -444,6 +452,15 @@ class RecTIA(A.ImageOnlyTransform):
             new_img = tia_perspective(new_img)
 
         if random.random() <= prob and img_height >= 20 and img_width >= 20:
-            new_img = get_crop(new_img)
+            new_img = get_crop_pad(new_img)
         
         return new_img
+
+
+@PIPELINES.register()
+class Reverse(A.ImageOnlyTransform):
+    def __init__(self, always_apply=False, p=1.0):
+        super(Reverse, self).__init__(always_apply, p)
+
+    def apply(self, image, **params):
+        return 255 - image

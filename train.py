@@ -22,7 +22,7 @@ def parse_opt(known=False):
                         help='initial weights path')
     parser.add_argument('--accelerator',    type=str,   default='gpu'),
     parser.add_argument('--devices',        type=int,   default=1),
-    parser.add_argument('--epochs',         type=int,   default=10),
+    parser.add_argument('--epochs',         type=int,   default=50),
     parser.add_argument('--lr',             type=float, default=0.01,
                         help='max learning rate during training'),
     parser.add_argument('--batch-size',     type=int,   default=64,
@@ -31,9 +31,9 @@ def parse_opt(known=False):
                         help='max dataloader workers (per RANK in DDP mode)')
     parser.add_argument('--optim',          type=str,   choices=['SGD', 'Adam', 'AdamW'], default='SGD',
                         help='optimizer')
-    parser.add_argument('--seed',           type=int,   default=None,
+    parser.add_argument('--seed',           type=int,   default=77,
                         help='random seed')
-    parser.add_argument('--name',           type=str,   default='cls',
+    parser.add_argument('--name',           type=str,   default='rec',
                         help='save to project/name')
     parser.add_argument('--fp16',           action='store_true',
                         help='use fp16')
@@ -107,9 +107,9 @@ def main():
         check_val_every_n_epoch= epochs+1 if opt.noval else opt.val_period,
     )
 
-    if opt.mode == 'train':
+    if opt.mode.lower() == 'train':
         trainer.fit(lmodel)
-    elif opt.mode == 'val':
+    elif opt.mode.lower() == 'val':
         trainer.validate(lmodel)
     else:
         raise NotImplementedError
