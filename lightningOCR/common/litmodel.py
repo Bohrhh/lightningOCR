@@ -43,38 +43,38 @@ def build_postprocess(cfg):
 class BaseLitModule(LightningModule, metaclass=ABCMeta):
     def __init__(
         self,
-        data_cfg,
+        data,
         strategy,
         architecture,
-        loss_cfg,
-        metric_cfg=None,
-        postprocess_cfg=None
+        loss,
+        metric=None,
+        postprocess=None
     ):
         super(BaseLitModule, self).__init__()
-        self.data_cfg = data_cfg
+        self.data = data
         self.strategy = strategy
-        self.batch_size = data_cfg.batch_size_per_device
-        self.num_workers = min(data_cfg.workers_per_device,
+        self.batch_size = data.batch_size_per_device
+        self.num_workers = min(data.workers_per_device,
                                os.cpu_count() // max(torch.cuda.device_count(),1),
                                self.batch_size if self.batch_size > 1 else 0)
-        self.pin_memory = data_cfg.pin_memory
+        self.pin_memory = data.pin_memory
 
         self.model = build_model(architecture)
-        self.loss = build_loss(loss_cfg)
-        self.metric = None if metric_cfg is None else build_metric(metric_cfg)
-        self.postprocess = None if postprocess_cfg is None else build_postprocess(postprocess_cfg)
+        self.loss = build_loss(loss)
+        self.metric = None if metric is None else build_metric(metric)
+        self.postprocess = None if postprocess is None else build_postprocess(postprocess)
 
     def setup(self, stage=None):
         if stage == 'fit' or stage is None:
-            self.trainset = build_dataset(self.data_cfg.train)
+            self.trainset = build_dataset(self.data.train)
             self.trainset_size = len(self.trainset)
-            self.valset = build_dataset(self.data_cfg.val)
+            self.valset = build_dataset(self.data.val)
             self.valset_size = len(self.valset)
         if stage == 'validate':
-            self.valset = build_dataset(self.data_cfg.val)
+            self.valset = build_dataset(self.data.val)
             self.valset_size = len(self.valset)
         if stage == 'test' or stage is None:
-            self.testset = build_dataset(self.data_cfg.test)
+            self.testset = build_dataset(self.data.test)
 
     def train_dataloader(self):
         return DataLoader(self.trainset,

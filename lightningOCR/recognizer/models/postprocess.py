@@ -1,4 +1,5 @@
 import torch
+import string
 import numpy as np
 import torch.nn as nn
 
@@ -102,17 +103,18 @@ class CTCLabelDecode(BaseRecLabelDecode):
         super(CTCLabelDecode, self).__init__(character_dict_path,
                                              character_type, use_space_char)
 
-    def __call__(self, preds, gt=None, *args, **kwargs):
-        label = None if gt is None else gt['target'].cpu().numpy()
-        logits = preds['logits'].detach()
-        logits = torch.softmax(logits, dim=2)
-        preds_prob, preds_idx = torch.max(logits, dim=2)
-        preds_prob = preds_prob.cpu().numpy()
-        preds_idx = preds_idx.cpu().numpy()
-        preds_result = self.decode(preds_idx, preds_prob, is_remove_duplicate=True)
-        if label is None:
-            return preds_result
-        gt_results = self.decode(label)
+    def __call__(self, preds=None, gt=None, *args, **kwargs):
+        preds_result = None
+        gt_results = None
+        if preds is not None:
+            logits = preds['logits'].detach()
+            logits = torch.softmax(logits, dim=2)
+            preds_prob, preds_idx = torch.max(logits, dim=2)
+            preds_prob = preds_prob.cpu().numpy()
+            preds_idx = preds_idx.cpu().numpy()
+            preds_result = self.decode(preds_idx, preds_prob, is_remove_duplicate=True)
+        if gt is not None:
+            gt_results = self.decode(gt['target'].cpu().numpy())
         return preds_result, gt_results
 
     def add_special_char(self, dict_character):

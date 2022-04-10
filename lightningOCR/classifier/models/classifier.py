@@ -10,16 +10,16 @@ from lightningOCR.common import LIGHTNING_MODULE
 class Classifier(BaseLitModule):
     def __init__(
         self,
-        data_cfg,
+        data,
         strategy,
         architecture,
-        loss_cfg,
-        metric_cfg
+        loss,
+        metric
     ):
         super(Classifier, self).__init__(
-            data_cfg, strategy, architecture, loss_cfg, metric_cfg
+            data, strategy, architecture, loss, metric
         )
-        assert self.metric is not None, 'metric_cfg should be Acc'
+        assert self.metric is not None, 'metric should be Acc'
         self.register_buffer('train_corrects', torch.tensor(0.0))
         self.register_buffer('train_samples', torch.tensor(0.0))
         self.register_buffer('val_corrects', torch.tensor(0.0))

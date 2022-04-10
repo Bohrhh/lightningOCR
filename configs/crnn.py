@@ -1,7 +1,22 @@
 # ========================
 # data
 dataset_type = 'RecDataset'
-data_root = '../data/icdar2019_lsvt/train/rec'
+train_root = [
+    '../data/rec/mtwi2018/train',
+    '../data/rec/icdar2019_lsvt/train',
+    '../data/rec/icdar2019_rects/train',
+    '../data/rec/YCG09/train_images',
+    '../data/rec/YCG09/train_syn_images',
+    '../data/rec/YCG09/test_syn_images',
+    '../data/rec/ccpd2019/train',
+    '../data/rec/ccpd2020/train',
+    '../data/rec/document/train',
+    '../data/rec/document/val',
+    '../data/rec/document/test',
+    '../data/rec/ctw/train',
+    '../data/rec/ctw/val',
+]
+val_root = '../data/rec/mtwi2018/train'
 character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
 
@@ -16,7 +31,7 @@ train_pipeline = {'transforms':[
                              use_space_char=True),
                         dict(type='RecTIA', p=0.8),
                         dict(type='ColorJitter', brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, p=0.5),
-                        dict(type='GaussianBlur', blur_limit=(5, 5), sigma_limit=1, p=0.5),
+                        # dict(type='GaussianBlur', blur_limit=(5, 5), sigma_limit=1, p=0.5),  # cost too much time
                         dict(type='GaussNoise', var_limit=(10.0, 50.0), p=0.5),
                         dict(type='Reverse', p=0.5),
                         dict(type='Normalize', **img_norm_cfg),
@@ -34,23 +49,31 @@ val_pipeline  =  {'transforms':[
 test_pipeline =  {'transforms':[ 
                         dict(type='Normalize', **img_norm_cfg)]}
 
+
+postprocess = dict(type='CTCLabelDecode',
+                   character_dict_path=character_dict_path,
+                   character_type='ch',
+                   use_space_char=True)
+
+
 data = dict(
     pin_memory=True,
     train=dict(
         type=dataset_type,
-        data_root=data_root,
+        data_root=train_root,
         pipeline=train_pipeline,
         length=None,
-        fontfile=fontfile),
+        fontfile=fontfile,
+        postprocess=postprocess),
     val=dict(
         type=dataset_type,
-        data_root=data_root,
+        data_root=val_root,
         pipeline=val_pipeline,
         length=None,
         fontfile=fontfile),
     test=dict(
         type=dataset_type,
-        data_root=data_root,
+        data_root=val_root,
         pipeline=test_pipeline))
 
 
@@ -70,19 +93,15 @@ strategy = dict(
 model = dict(
     type='Recognizer',
     architecture=dict(type='CRNN'),
-    loss_cfg=dict(type='CTCLoss'),
+    loss=dict(type='CTCLoss'),
     strategy=strategy,
-    data_cfg=data,
-    metric_cfg=dict(type='RecF1'),
-    postprocess_cfg=dict(
-        type='CTCLabelDecode',
-        character_dict_path=character_dict_path,
-        character_type='ch',
-        use_space_char=True)
+    data=data,
+    metric=dict(type='RecF1'),  # RecF1 or RecAcc
+    postprocess=postprocess
 )
 
 
 # ========================
 # callbacks
 
-ckpt = dict(monitor='acc/val' if model['metric_cfg']['type'] == 'RecAcc' else 'f1/val', mode='max')
+ckpt = dict(monitor='acc/val' if model['metric']['type'] == 'RecAcc' else 'f1/val', mode='max')

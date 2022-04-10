@@ -11,15 +11,15 @@ from lightningOCR.common.metric import RecAcc, RecF1
 class Recognizer(BaseLitModule):
     def __init__(
         self,
-        data_cfg,
+        data,
         strategy,
         architecture,
-        loss_cfg,
-        metric_cfg=None,
-        postprocess_cfg=None
+        loss,
+        metric=None,
+        postprocess=None
     ):
         super(Recognizer, self).__init__(
-            data_cfg, strategy, architecture, loss_cfg, metric_cfg, postprocess_cfg
+            data, strategy, architecture, loss, metric, postprocess
         )
         assert isinstance(self.metric, (RecAcc, RecF1))
         assert self.postprocess is not None
@@ -38,7 +38,7 @@ class Recognizer(BaseLitModule):
             results (Dict): {'text':[t1, t2, ..., tn], 'prob':[p1, p2, ..., pn]} 
         """
         x = self.model(x)
-        results = self.postprocess(x)
+        results, _ = self.postprocess(x)
         return results
 
     def log_f1(self, match_chars, gt_chars, pred_chars, mode, prog_bar, logger):

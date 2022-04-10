@@ -60,7 +60,7 @@ def update_cfg(cfg, opt):
 
     # update lightning model
     cfg['model']['strategy'] = cfg['strategy']
-    cfg['model']['data_cfg'] = cfg['data']
+    cfg['model']['data'] = cfg['data']
     return cfg
 
 

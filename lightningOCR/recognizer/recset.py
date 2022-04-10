@@ -20,7 +20,7 @@ class RecDataset(BaseDataset):
     An example of file structure is as followed.
 
     data folder organization
-    ${data}
+    ${data_root}
     ├── data.mdb
 
     Args:
@@ -33,8 +33,9 @@ class RecDataset(BaseDataset):
                  data_root,
                  pipeline,
                  length=None,
-                 fontfile=None):
-        super(RecDataset, self).__init__(pipeline)
+                 fontfile=None,
+                 postprocess=None):
+        super(RecDataset, self).__init__(pipeline, postprocess)
         if isinstance(data_root, str):
             self.data_root = [data_root]
         else:
@@ -145,7 +146,11 @@ class RecDataset(BaseDataset):
 
     def plot_batch(self, batch, out_file):
         images = batch['image']
-        labels = batch['gt']['label']
+        if self.postprocess is not None:
+            _, labels = self.postprocess(gt=batch['gt'])
+            labels = labels['text']
+        else:
+            labels = batch['gt']['label']
 
         # reverse normalize
         images = images.cpu().numpy()

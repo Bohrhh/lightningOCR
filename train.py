@@ -33,6 +33,8 @@ def parse_opt(known=False):
                         help='optimizer')
     parser.add_argument('--seed',           type=int,   default=77,
                         help='random seed')
+    parser.add_argument('--project',        type=str,   default=None,
+                        help='save to project/name')
     parser.add_argument('--name',           type=str,   default='rec',
                         help='save to project/name')
     parser.add_argument('--fp16',           action='store_true',
@@ -68,7 +70,7 @@ def main():
     batch_size_per_device = cfg['data']['batch_size_per_device']
     batch_size_total = batch_size_per_device * devices
 
-    project = f'../runs/{opt.mode}'
+    project = f'../runs/{opt.mode}' if opt.project is None else project
     tb_logger = loggers.TensorBoardLogger(save_dir=project, name=opt.name)
     print(f'Results saved to {colorstr("bold", tb_logger.log_dir)}')
 
@@ -101,7 +103,7 @@ def main():
         callbacks=[bar, checkpoint],
         sync_batchnorm=opt.sync_bn and devices > 1,
         precision=16 if opt.fp16 else 32,
-        deterministic=False if opt.seed is None or cfg.model.loss_cfg.type=='CTCLoss' else True,
+        deterministic=False if opt.seed is None or cfg.model.loss.type=='CTCLoss' else True,
         benchmark=True if opt.seed is None else False,
         strategy='ddp' if devices > 1 else None,
         check_val_every_n_epoch= epochs+1 if opt.noval else opt.val_period,

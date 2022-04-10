@@ -6,6 +6,7 @@ from abc import ABCMeta, abstractmethod
 
 from .registry import build_from_cfg
 from .pipelines import PIPELINES
+from .litmodel import build_postprocess
 
 
 def build_pipeline(cfg, default_args=None):
@@ -61,12 +62,13 @@ class Compose(object):
 
 
 class BaseDataset(Dataset, metaclass=ABCMeta):
-    def __init__(self, pipeline):
+    def __init__(self, pipeline, postprocess):
         super(BaseDataset, self).__init__()
         self.pipeline  = Compose(pipeline['transforms'], 
                                  pipeline.get('bbox_params'), 
                                  pipeline.get('keypoint_params'),
                                  pipeline.get('additional_targets'))
+        self.postprocess = None if postprocess is None else build_postprocess(postprocess)
         
         if 'Normalize' in [i.type for i in pipeline['transforms']]:
             idx = [i.type for i in pipeline['transforms']].index('Normalize')
