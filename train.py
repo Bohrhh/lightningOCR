@@ -16,7 +16,7 @@ def parse_opt(known=False):
     parser = argparse.ArgumentParser()
     parser.add_argument('--mode',           type=str,   choices=['train', 'val', 'test'], default='train',
                         help='program mode')
-    parser.add_argument('--cfg',            type=str,   default='configs/resnet.py',
+    parser.add_argument('--cfg',            type=str,   default='configs/crnn.py',
                         help='train config file path')
     parser.add_argument('--weights',        type=str,   default='',
                         help='initial weights path')
@@ -49,6 +49,8 @@ def parse_opt(known=False):
                         help='only validate final epoch')
     parser.add_argument('--nosave',         action='store_true',
                         help='do not save checkpoint')
+    parser.add_argument('--save-fault',     action='store_true',
+                        help='save wrong prediction')
     
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
     return opt
@@ -70,7 +72,7 @@ def main():
     batch_size_per_device = cfg['data']['batch_size_per_device']
     batch_size_total = batch_size_per_device * devices
 
-    project = f'../runs/{opt.mode}' if opt.project is None else project
+    project = f'../runs/{opt.mode}' if opt.project is None else opt.project
     tb_logger = loggers.TensorBoardLogger(save_dir=project, name=opt.name)
     print(f'Results saved to {colorstr("bold", tb_logger.log_dir)}')
 
@@ -78,7 +80,8 @@ def main():
     # build lightning model
     lmodel = build_lightning_model(cfg.model)
     lmodel.prepare_data()
-    lmodel.setup(stage='fit')
+    lmodel.setup(stage={'train':'fit', 'val':'validate', 'test':'test'}[opt.mode])
+    lmodel.save_fault = opt.save_fault
 
     if opt.weights:
         assert os.path.exists(opt.weights)

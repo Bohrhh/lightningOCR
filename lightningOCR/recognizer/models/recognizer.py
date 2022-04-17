@@ -58,12 +58,12 @@ class Recognizer(BaseLitModule):
 
         # Metric
         if isinstance(self.metric, RecAcc):
-            c, s = self.metric(pred, gt)
+            c, s, _ = self.metric(pred, gt)
             self.train_corrects += c
             self.train_gt_samples += s
             self.log('acc/train', self.train_corrects / self.train_gt_samples, prog_bar=True, logger=False)
         else:
-            match_chars, gt_chars, pred_chars = self.metric(pred, gt)
+            match_chars, gt_chars, pred_chars, _ = self.metric(pred, gt)
             self.train_corrects += match_chars
             self.train_gt_samples += gt_chars
             self.train_pred_samples += pred_chars
@@ -96,14 +96,21 @@ class Recognizer(BaseLitModule):
         pred = self.model(x)
         pred, gt = self.postprocess(pred, gt)
         if isinstance(self.metric, RecAcc):
-            c, s = self.metric(pred, gt)
+            c, s, wrong_index = self.metric(pred, gt)
             self.val_corrects += c
             self.val_gt_samples += s
         else:
-            match_chars, gt_chars, pred_chars = self.metric(pred, gt)
+            match_chars, gt_chars, pred_chars, wrong_index = self.metric(pred, gt)
             self.val_corrects += match_chars
             self.val_gt_samples += gt_chars
             self.val_pred_samples += pred_chars
+        if self.stage == 'validate' and self.save_fault:
+            falut_dir = os.path.join(self.logger.log_dir, 'fault')
+            os.makedirs(falut_dir, exist_ok=True)
+            for index in wrong_index:
+                title = f'pred:{pred["text"][index]}\ngt:{gt["text"][index]}'
+                save_img = os.path.join(falut_dir, f'{batch_idx}.{self.global_rank}.{index}.jpg')
+                self.valset.plot(batch['image'][index], title, save_img)
 
     def validation_epoch_end(self, val_step_outputs):
         val_corrects = self.all_gather(self.val_corrects)

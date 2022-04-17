@@ -52,10 +52,13 @@ class RecAcc(nn.Module):
         assert len(pred_text) == len(gt_text)
         batch_num = len(pred_text)
         corrects = 0
-        for (i, j) in zip(pred_text, gt_text):
+        wrong_index = []
+        for index, (i, j) in enumerate(zip(pred_text, gt_text)):
             if i == j:
                 corrects += 1
-        return corrects, batch_num
+            else:
+                wrong_index.append(index)
+        return corrects, batch_num, wrong_index
 
 
 @METRICS.register()
@@ -81,10 +84,13 @@ class RecF1(nn.Module):
         match_chars = 0
         gt_chars = 0 
         pred_chars = 0
+        wrong_index = []
 
-        for (i, j) in zip(gt_text, pred_text):
+        for index, (i, j) in enumerate(zip(gt_text, pred_text)):
             matchs = difflib.SequenceMatcher(a=i, b=j).get_matching_blocks()
             match_chars += sum([k.size for k in matchs])
             gt_chars += len(i)
             pred_chars += len(j)
-        return match_chars, gt_chars, pred_chars
+            if i != j:
+                wrong_index.append(index)
+        return match_chars, gt_chars, pred_chars, wrong_index

@@ -1,5 +1,6 @@
 import cv2
 import lmdb
+import torch
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -130,19 +131,23 @@ class RecDataset(BaseDataset):
     def __len__(self):
         return self.length
 
-    def plot_idx(self, idx, out_file):
-        results = self.__getitem__(idx)
-        image = results['image']
-        label = results['gt']['label']
-
+    def plot(self, image, text, out_file):
         # reverse normalize
+        if isinstance(image, torch.Tensor):
+            image = image.cpu().numpy()
         image = image.transpose(1,2,0) * np.array(self.std) + np.array(self.mean)
         image = np.clip(image * 255, 0, 255).astype(np.uint8)
 
         plt.imshow(image[:,:,::-1])
-        plt.title(label, fontproperties=font_manager.FontProperties(fname=self.fontfile))
+        plt.title(text, fontproperties=font_manager.FontProperties(fname=self.fontfile))
         plt.savefig(out_file, dpi=200, bbox_inches='tight')
         plt.close()
+
+    def plot_idx(self, idx, out_file):
+        results = self.__getitem__(idx)
+        image = results['image']
+        label = results['gt']['label']
+        self.plot(image, label, out_file)
 
     def plot_batch(self, batch, out_file):
         images = batch['image']

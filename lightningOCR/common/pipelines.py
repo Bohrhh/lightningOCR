@@ -464,3 +464,12 @@ class Reverse(A.ImageOnlyTransform):
 
     def apply(self, image, **params):
         return 255 - image
+
+
+@PIPELINES.register()
+class Flipud(A.ImageOnlyTransform):
+    def __init__(self, always_apply=False, p=1.0):
+        super(Flipud, self).__init__(always_apply, p)
+
+    def apply(self, image, **params):
+        return image[::-1]

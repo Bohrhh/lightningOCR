@@ -29,7 +29,8 @@ train_pipeline = {'transforms':[
                              character_dict_path=character_dict_path,
                              character_type='ch',
                              use_space_char=True),
-                        dict(type='RecTIA', p=0.8),
+                        dict(type='RecTIA', p=0.5),
+                        dict(type='Flipud', p=0.02),
                         dict(type='ColorJitter', brightness=0.2, contrast=0.2, saturation=0.2, hue=0.2, p=0.5),
                         # dict(type='GaussianBlur', blur_limit=(5, 5), sigma_limit=1, p=0.5),  # cost too much time
                         dict(type='GaussNoise', var_limit=(10.0, 50.0), p=0.5),
