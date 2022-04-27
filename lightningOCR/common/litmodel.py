@@ -65,7 +65,7 @@ class BaseLitModule(LightningModule, metaclass=ABCMeta):
         self.postprocess = None if postprocess is None else build_postprocess(postprocess)
 
     def setup(self, stage=None):
-        self.stage = stage
+        self.stage = 'fit' if stage is None else stage
         self.trainset_size = -1
         self.valset_size = -1
         if stage == 'fit' or stage is None:

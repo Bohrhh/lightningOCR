@@ -7,9 +7,10 @@ from pytorch_lightning.callbacks import ModelCheckpoint
 
 from lightningOCR import classifier
 from lightningOCR import recognizer
-from lightningOCR.common import Config, LitProgressBar
+from lightningOCR.common import Config
 from lightningOCR.common import build_lightning_model
 from lightningOCR.common.utils import intersect_dicts, update_cfg, colorstr
+from lightningOCR.common.utils import LitProgressBar
 
 
 def parse_opt(known=False):
@@ -61,7 +62,6 @@ def main():
     # =============================================
     # parse args
     opt = parse_opt()
-    opt.cfg = 'configs/crnn.py'
     cfg = Config.fromfile(opt.cfg)
     cfg = update_cfg(cfg, opt)
 
@@ -84,7 +84,7 @@ def main():
     lmodel.save_fault = opt.save_fault
 
     if opt.weights:
-        assert os.path.exists(opt.weights)
+        assert os.path.exists(opt.weights), f'weights does not exist: {opt.weights}'
         csd = torch.load(opt.weights, map_location='cpu')['state_dict']
         csd = intersect_dicts(csd, lmodel.state_dict())  # intersect
         lmodel.load_state_dict(csd, strict=False)

@@ -125,9 +125,9 @@ class BaseDataset(Dataset, metaclass=ABCMeta):
             }
         """
 
-        results  = self.load_data(idx)
-        results  = self.before_pipeline(results)
         try:
+            results  = self.load_data(idx)
+            results  = self.before_pipeline(results)
             results  = self.pipeline(results)
             results  = self.after_pipeline(results)
             results  = self.gather(results)

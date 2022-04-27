@@ -54,6 +54,8 @@ class RecAcc(nn.Module):
         corrects = 0
         wrong_index = []
         for index, (i, j) in enumerate(zip(pred_text, gt_text)):
+            i = i.replace(' ', '')
+            j = j.replace(' ', '')
             if i == j:
                 corrects += 1
             else:
@@ -87,6 +89,8 @@ class RecF1(nn.Module):
         wrong_index = []
 
         for index, (i, j) in enumerate(zip(gt_text, pred_text)):
+            i = i.replace(' ', '')
+            j = j.replace(' ', '')
             matchs = difflib.SequenceMatcher(a=i, b=j).get_matching_blocks()
             match_chars += sum([k.size for k in matchs])
             gt_chars += len(i)

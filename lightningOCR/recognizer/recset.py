@@ -108,6 +108,8 @@ class RecDataset(BaseDataset):
         imgbuf, label = sample_info
         img = np.frombuffer(imgbuf, dtype='uint8')
         img = cv2.imdecode(img, 1)
+        if len(label) <= 2:
+            raise TypeError
         return {'image': img, 'label': label, 'target': label}
 
     def after_pipeline(self, results):

@@ -3,20 +3,20 @@
 dataset_type = 'RecDataset'
 train_root = [
     '../data/rec/mtwi2018/train',
-    '../data/rec/icdar2019_lsvt/train',
-    '../data/rec/icdar2019_rects/train',
-    '../data/rec/YCG09/train_images',
-    '../data/rec/YCG09/train_syn_images',
-    '../data/rec/YCG09/test_syn_images',
-    '../data/rec/ccpd2019/train',
-    '../data/rec/ccpd2020/train',
-    '../data/rec/document/train',
-    '../data/rec/document/val',
-    '../data/rec/document/test',
-    '../data/rec/ctw/train',
-    '../data/rec/ctw/val',
+    # '../data/rec/icdar2019_lsvt/train',
+    # '../data/rec/icdar2019_rects/train',
+    # '../data/rec/YCG09/train_images',
+    # '../data/rec/YCG09/train_syn_images',
+    # '../data/rec/YCG09/test_syn_images',
+    # '../data/rec/ccpd2019/train',
+    # '../data/rec/ccpd2020/train',
+    # '../data/rec/document/train',
+    # '../data/rec/document/val',
+    # '../data/rec/document/test',
+    # '../data/rec/ctw/train',
+    # '../data/rec/ctw/val',
 ]
-val_root = '../data/rec/mtwi2018/train'
+val_root = '../data/rec/mtwi2018/test'
 character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
 
