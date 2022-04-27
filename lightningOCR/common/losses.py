@@ -1,9 +1,14 @@
+import os
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from .registry import Registry
+from .registry import Registry, build_from_cfg
 
 LOSSES = Registry('loss')
+
+
+def build_loss(cfg):
+    return build_from_cfg(cfg, LOSSES)
 
 
 @LOSSES.register()
@@ -16,7 +21,7 @@ class CrossEntropyLoss(nn.Module):
         logits = pred['logits']
         targets = gt['target']
         loss = self.loss_fun(logits, targets)
-        return loss
+        return {'loss': loss}
 
 
 @LOSSES.register()
@@ -42,7 +47,7 @@ class LabelSmoothing(nn.Module):
         smooth_loss = -logprobs.mean(dim=-1)
         loss = self.confidence * nll_loss + self.smoothing * smooth_loss
         loss = loss.mean()*self.loss_weight
-        return loss
+        return {'loss': loss}
 
 
 @LOSSES.register()
@@ -63,4 +68,88 @@ class CTCLoss(nn.Module):
         target_lengths = torch.clamp(target_lengths, min=1, max=T).long()
 
         loss = self.loss_func(x_for_loss, targets, x_lengths, target_lengths)
+        return {'loss': loss}
+
+
+@LOSSES.register()
+class CenterLoss(nn.Module):
+    """
+    Reference: Wen et al. A Discriminative Feature Learning Approach for Deep Face Recognition. ECCV 2016.
+    """
+
+    def __init__(self, num_classes=6625, feat_dim=96, center_file_path=None):
+        super(CenterLoss, self).__init__()
+        self.num_classes = num_classes
+        self.feat_dim = feat_dim
+        self.centers = torch.randn(
+            shape=[self.num_classes, self.feat_dim]).astype("float64")
+
+        if center_file_path is not None:
+            assert os.path.exists(
+                center_file_path
+            ), f"center path({center_file_path}) must exist when it is not None."
+            with open(center_file_path, 'rb') as f:
+                char_dict = pickle.load(f)
+                for key in char_dict.keys():
+                    self.centers[key] = torch.to_tensor(char_dict[key])
+
+    def forward(self, pred, gt):
+        logits = pred['logits']
+        features = pred['feats']
+
+        feats_reshape = torch.reshape(
+            features, [-1, features.shape[-1]]).astype("float64")
+        label = torch.argmax(logits, axis=2)
+        label = torch.reshape(label, [label.shape[0] * label.shape[1]])
+
+        batch_size = feats_reshape.shape[0]
+
+        #calc l2 distance between feats and centers  
+        square_feat = torch.sum(torch.square(feats_reshape),
+                                 axis=1,
+                                 keepdim=True)
+        square_feat = square_feat.expand(batch_size, self.num_classes)
+
+        square_center = torch.sum(torch.square(self.centers),
+                                   axis=1,
+                                   keepdim=True)
+        square_center = square_center.expand(self.num_classes, batch_size).astype("float64")
+        square_center = torch.transpose(square_center, [1, 0])
+
+        distmat = torch.add(square_feat, square_center)
+        feat_dot_center = torch.matmul(feats_reshape,
+                                        torch.transpose(self.centers, [1, 0]))
+        distmat = distmat - 2.0 * feat_dot_center
+
+        #generate the mask
+        classes = torch.arange(self.num_classes).astype("int64")
+        label = torch.unsqueeze(label, 1).expand(batch_size, self.num_classes)
+        mask = torch.equal(classes.expand(batch_size, self.num_classes), label).astype("float64")
+        dist = torch.multiply(distmat, mask)
+
+        loss = torch.sum(torch.clip(dist, min=1e-12, max=1e+12)) / batch_size
+        return {'loss': loss}
+
+
+@LOSSES.register()
+class CombinedLoss(nn.Module):
+    def __init__(self, **kwargs):
+        super(CombinedLoss, self).__init__()
+        self.loss_weight = []
+        self.loss_func = []
+        self.loss_name = []
+        for k, loss_cfg in kwargs.items():
+            weight = 1.0 if 'weight' not in loss_cfg else loss_cfg.pop('weight')
+            self.loss_weight.append(weight)
+            self.loss_func.append(build_loss(loss_cfg))
+            self.loss_name.append(k)
+
+    def forward(self, pred, gt):
+        loss_total = 0
+        loss = {}
+        for name, func, weight in zip(self.loss_name, self.loss_func, self.weight):
+            loss[name] = func(pred, gt)['loss'] * weight
+            loss_total += loss[name]
+
+        loss['loss'] = loss_total
         return loss

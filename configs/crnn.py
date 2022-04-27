@@ -2,7 +2,7 @@
 # data
 dataset_type = 'RecDataset'
 train_root = [
-    '../data/rec/mtwi2018/train',
+    # '../data/rec/mtwi2018/train',
     # '../data/rec/icdar2019_lsvt/train',
     # '../data/rec/icdar2019_rects/train',
     # '../data/rec/YCG09/train_images',
@@ -13,10 +13,10 @@ train_root = [
     # '../data/rec/document/train',
     # '../data/rec/document/val',
     # '../data/rec/document/test',
-    # '../data/rec/ctw/train',
+    '../data/rec/ctw/train',
     # '../data/rec/ctw/val',
 ]
-val_root = '../data/rec/mtwi2018/test'
+val_root = '../data/rec/ctw/val'
 character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
 
@@ -94,7 +94,9 @@ strategy = dict(
 model = dict(
     type='Recognizer',
     architecture=dict(type='CRNN'),
-    loss=dict(type='CTCLoss'),
+    loss=dict(type='CombinedLoss',
+              loss_ctc=dict(type='CTCLoss', weight=1.0),
+              loss_center=dict(type='CenterLoss', weight=0.05)),
     strategy=strategy,
     data=data,
     metric=dict(type='RecF1'),  # RecF1 or RecAcc

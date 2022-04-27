@@ -8,7 +8,7 @@ from torch.utils.data import DataLoader
 from torch.optim import SGD, Adam, AdamW, lr_scheduler
 from pytorch_lightning import LightningModule
 
-from .losses import LOSSES
+from .losses import LOSSES, build_loss
 from .metric import METRICS
 from .utils import colorstr
 from .registry import Registry, build_from_cfg
@@ -26,10 +26,6 @@ def build_dataset(cfg, default_args=None):
 
 def build_model(cfg):
     return build_from_cfg(cfg, ARCHITECTURES)
-
-
-def build_loss(cfg):
-    return build_from_cfg(cfg, LOSSES)
 
 
 def build_metric(cfg):

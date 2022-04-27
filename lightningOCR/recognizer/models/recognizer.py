@@ -56,7 +56,11 @@ class Recognizer(BaseLitModule):
         loss = self.loss(pred, gt)
         pred, gt = self.postprocess(pred, gt)
 
-        # Metric
+        # Log loss
+        for k, v in loss.items():
+            self.log(f'{k}/train', v, prog_bar=False, logger=True, on_epoch=True, on_step=False)
+
+        # Log metric
         if isinstance(self.metric, RecAcc):
             c, s, _ = self.metric(pred, gt)
             self.train_corrects += c
@@ -68,15 +72,18 @@ class Recognizer(BaseLitModule):
             self.train_gt_samples += gt_chars
             self.train_pred_samples += pred_chars
             self.log_f1(self.train_corrects, self.train_gt_samples, self.train_pred_samples, 'train', True, False)
-        # Log and Plot
+
+        # Log lr
         for j, para in enumerate(self.optimizers().param_groups):
             self.log(f'x/lr{j}', para['lr'], prog_bar=False, logger=True)
+
+        # Plot
         if self.global_rank in [-1, 0] and self.global_step < 6 and hasattr(self.trainset, 'plot_batch'):
             # do plot
             os.makedirs(self.logger.log_dir, exist_ok=True)
             self.trainset.plot_batch(batch, os.path.join(self.logger.log_dir, f'train_batch_{self.global_step}.jpg'))
 
-        return loss
+        return loss.pop('loss')
 
     def training_epoch_end(self, training_step_outputs):
         train_corrects = self.all_gather(self.train_corrects)
@@ -94,7 +101,14 @@ class Recognizer(BaseLitModule):
         x = batch['image']
         gt = batch['gt']
         pred = self.model(x)
+        loss = self.loss(pred, gt)
         pred, gt = self.postprocess(pred, gt)
+
+        # Log loss
+        for k, v in loss.items():
+            self.log(f'{k}/val', v, prog_bar=False, logger=True, on_epoch=True, on_step=False)
+
+        # Update for metric
         if isinstance(self.metric, RecAcc):
             c, s, wrong_index = self.metric(pred, gt)
             self.val_corrects += c
@@ -104,6 +118,8 @@ class Recognizer(BaseLitModule):
             self.val_corrects += match_chars
             self.val_gt_samples += gt_chars
             self.val_pred_samples += pred_chars
+
+        # Save wrong predicts
         if self.stage == 'validate' and self.save_fault:
             falut_dir = os.path.join(self.logger.log_dir, 'fault')
             os.makedirs(falut_dir, exist_ok=True)
