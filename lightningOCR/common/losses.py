@@ -81,24 +81,14 @@ class CenterLoss(nn.Module):
         super(CenterLoss, self).__init__()
         self.num_classes = num_classes
         self.feat_dim = feat_dim
-        self.centers = torch.randn(
-            shape=[self.num_classes, self.feat_dim]).astype("float64")
-
-        if center_file_path is not None:
-            assert os.path.exists(
-                center_file_path
-            ), f"center path({center_file_path}) must exist when it is not None."
-            with open(center_file_path, 'rb') as f:
-                char_dict = pickle.load(f)
-                for key in char_dict.keys():
-                    self.centers[key] = torch.to_tensor(char_dict[key])
+        self.register_buffer('centers', torch.randn(self.num_classes, self.feat_dim, dtype=torch.float64))
 
     def forward(self, pred, gt):
         logits = pred['logits']
         features = pred['feats']
 
         feats_reshape = torch.reshape(
-            features, [-1, features.shape[-1]]).astype("float64")
+            features, [-1, features.shape[-1]]).to(torch.float64)
         label = torch.argmax(logits, axis=2)
         label = torch.reshape(label, [label.shape[0] * label.shape[1]])
 
@@ -113,18 +103,18 @@ class CenterLoss(nn.Module):
         square_center = torch.sum(torch.square(self.centers),
                                    axis=1,
                                    keepdim=True)
-        square_center = square_center.expand(self.num_classes, batch_size).astype("float64")
-        square_center = torch.transpose(square_center, [1, 0])
+        square_center = square_center.expand(self.num_classes, batch_size).to(torch.float64)
+        square_center = torch.transpose(square_center, 1, 0)
 
         distmat = torch.add(square_feat, square_center)
         feat_dot_center = torch.matmul(feats_reshape,
-                                        torch.transpose(self.centers, [1, 0]))
+                                        torch.transpose(self.centers, 1, 0))
         distmat = distmat - 2.0 * feat_dot_center
 
         #generate the mask
-        classes = torch.arange(self.num_classes).astype("int64")
+        classes = torch.arange(self.num_classes, dtype=torch.long, device=self.centers.device)
         label = torch.unsqueeze(label, 1).expand(batch_size, self.num_classes)
-        mask = torch.equal(classes.expand(batch_size, self.num_classes), label).astype("float64")
+        mask = (classes.expand(batch_size, self.num_classes) == label).to(torch.float64)
         dist = torch.multiply(distmat, mask)
 
         loss = torch.sum(torch.clip(dist, min=1e-12, max=1e+12)) / batch_size
@@ -136,7 +126,7 @@ class CombinedLoss(nn.Module):
     def __init__(self, **kwargs):
         super(CombinedLoss, self).__init__()
         self.loss_weight = []
-        self.loss_func = []
+        self.loss_func = nn.ModuleList()
         self.loss_name = []
         for k, loss_cfg in kwargs.items():
             weight = 1.0 if 'weight' not in loss_cfg else loss_cfg.pop('weight')
@@ -147,7 +137,7 @@ class CombinedLoss(nn.Module):
     def forward(self, pred, gt):
         loss_total = 0
         loss = {}
-        for name, func, weight in zip(self.loss_name, self.loss_func, self.weight):
+        for name, func, weight in zip(self.loss_name, self.loss_func, self.loss_weight):
             loss[name] = func(pred, gt)['loss'] * weight
             loss_total += loss[name]
 

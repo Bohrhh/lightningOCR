@@ -309,7 +309,7 @@ class SequenceEncoder(nn.Module):
 
 
 class CTCHead(nn.Module):
-    def __init__(self, in_channels, out_channels=6625, mid_channels=None, **kwargs):
+    def __init__(self, in_channels, out_channels=6625, mid_channels=None, return_feats=False, **kwargs):
         super(CTCHead, self).__init__()
         if mid_channels is None:
             self.fc = nn.Linear(
@@ -330,15 +330,21 @@ class CTCHead(nn.Module):
 
         self.out_channels = out_channels
         self.mid_channels = mid_channels
+        self.return_feats = return_feats
 
     def forward(self, x, labels=None):
         if self.mid_channels is None:
             predicts = self.fc(x)
         else:
-            predicts = self.fc1(x)
-            predicts = self.fc2(predicts)
+            x = self.fc1(x)
+            predicts = self.fc2(x)
 
-        return predicts
+        if self.return_feats:
+            result = (x, predicts)
+        else:
+            result = predicts
+
+        return result
 
 
 @ARCHITECTURES.register()
@@ -351,14 +357,20 @@ class CRNN(nn.Module):
     Return:
         results (Dict): {'logits': Tensor of shape (N, T, C)}
     """
-    def __init__(self, scale=0.5, encoder_type='rnn', hidden_size=64, mid_channels=96):
+    def __init__(self, scale=0.5, encoder_type='rnn', hidden_size=64, mid_channels=96, return_feats=False):
         super(CRNN, self).__init__()
         self.backbone = MobileNetV1Enhance(scale = scale)
         self.neck = SequenceEncoder(self.backbone.out_channels, encoder_type, hidden_size)
-        self.head = CTCHead(self.neck.out_channels, mid_channels=mid_channels)
+        self.head = CTCHead(self.neck.out_channels, mid_channels=mid_channels, return_feats=return_feats)
+        self.return_feats = return_feats
 
     def forward(self, x):
         x = self.backbone(x)
         x = self.neck(x)
-        x = self.head(x)
-        return {'logits': x}
+
+        if self.return_feats:
+            feats, logits = self.head(x)
+            return {'logits': logits, 'feats': feats}
+        else:
+            logits = self.head(x)
+            return {'logits': logits}

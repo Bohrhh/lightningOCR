@@ -93,7 +93,7 @@ strategy = dict(
 # model
 model = dict(
     type='Recognizer',
-    architecture=dict(type='CRNN'),
+    architecture=dict(type='CRNN', return_feats=True),
     loss=dict(type='CombinedLoss',
               loss_ctc=dict(type='CTCLoss', weight=1.0),
               loss_center=dict(type='CenterLoss', weight=0.05)),
