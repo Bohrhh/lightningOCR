@@ -60,6 +60,7 @@ class BaseRecLabelEncode(object):
 
     def __init__(self,
                  max_text_length,
+                 min_text_length=1,
                  character_dict_path=None,
                  character_type='ch',
                  use_space_char=False):
@@ -73,6 +74,7 @@ class BaseRecLabelEncode(object):
             support_character_type, character_type)
 
         self.max_text_len = max_text_length
+        self.min_text_len = min_text_length
         self.beg_str = "sos"
         self.end_str = "eos"
         if character_type == "en":
@@ -114,7 +116,7 @@ class BaseRecLabelEncode(object):
                     [sum(text_lengths)] = [text_index_0 + text_index_1 + ... + text_index_(n - 1)]
             length: length of each text. [batch_size]
         """
-        if len(text) == 0 or len(text) > self.max_text_len:
+        if len(text) < self.min_text_len or len(text) > self.max_text_len:
             return None
         if self.character_type == "en":
             text = text.lower()
@@ -136,12 +138,13 @@ class CTCLabelEncode(BaseRecLabelEncode):
 
     def __init__(self,
                  max_text_length,
+                 min_text_length=1,
                  character_dict_path=None,
                  character_type='ch',
                  use_space_char=False,
                  **kwargs):
         super(CTCLabelEncode,
-              self).__init__(max_text_length, character_dict_path,
+              self).__init__(max_text_length, min_text_length, character_dict_path,
                              character_type, use_space_char)
 
     def __call__(self, *args, force_apply=False, **kwargs):
@@ -154,6 +157,13 @@ class CTCLabelEncode(BaseRecLabelEncode):
         kwargs['length'] = np.array(len(text))
         text = text + [0] * (self.max_text_len - len(text))
         kwargs['target'] = np.array(text)
+
+        # for loss ace
+        label = [0] * len(self.character)
+        for x in text:
+            label[x] += 1
+        kwargs['target_ace'] = np.array(label)
+
         return kwargs
 
     def add_special_char(self, dict_character):

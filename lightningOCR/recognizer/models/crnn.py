@@ -355,7 +355,8 @@ class CRNN(nn.Module):
         x (Tensor): shape (N, C, H, W)
     
     Return:
-        results (Dict): {'logits': Tensor of shape (N, T, C)}
+        results (Dict): {'logits': Tensor of shape (N, T, D) e.g. (64, 80, 6625)
+                         'feats': Tensor of shape (N, T, C) e.g. (64, 80, 96)} 
     """
     def __init__(self, scale=0.5, encoder_type='rnn', hidden_size=64, mid_channels=96, return_feats=False):
         super(CRNN, self).__init__()

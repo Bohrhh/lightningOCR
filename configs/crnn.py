@@ -2,9 +2,9 @@
 # data
 dataset_type = 'RecDataset'
 train_root = [
-    # '../data/rec/mtwi2018/train',
-    # '../data/rec/icdar2019_lsvt/train',
-    # '../data/rec/icdar2019_rects/train',
+    '../data/rec/mtwi2018/train',
+    '../data/rec/icdar2019_lsvt/train',
+    '../data/rec/icdar2019_rects/train',
     # '../data/rec/YCG09/train_images',
     # '../data/rec/YCG09/train_syn_images',
     # '../data/rec/YCG09/test_syn_images',
@@ -13,10 +13,12 @@ train_root = [
     # '../data/rec/document/train',
     # '../data/rec/document/val',
     # '../data/rec/document/test',
-    '../data/rec/ctw/train',
+    # '../data/rec/ctw/train',
     # '../data/rec/ctw/val',
+    # '../data/rec/synth/icdar2019_lsvt_weak',
 ]
-val_root = '../data/rec/ctw/val'
+val_root = '../data/rec/mtwi2018/test',
+
 character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
 
@@ -26,6 +28,7 @@ img_norm_cfg = dict(
 train_pipeline = {'transforms':[
                         dict(type='CTCLabelEncode',
                              max_text_length=25,
+                             min_text_length=3,
                              character_dict_path=character_dict_path,
                              character_type='ch',
                              use_space_char=True),
@@ -62,6 +65,7 @@ data = dict(
     train=dict(
         type=dataset_type,
         data_root=train_root,
+        character_dict_path=character_dict_path,
         pipeline=train_pipeline,
         length=None,
         fontfile=fontfile,
@@ -69,12 +73,14 @@ data = dict(
     val=dict(
         type=dataset_type,
         data_root=val_root,
+        character_dict_path=character_dict_path,
         pipeline=val_pipeline,
         length=None,
         fontfile=fontfile),
     test=dict(
         type=dataset_type,
         data_root=val_root,
+        character_dict_path=character_dict_path,
         pipeline=test_pipeline))
 
 
@@ -95,8 +101,10 @@ model = dict(
     type='Recognizer',
     architecture=dict(type='CRNN', return_feats=True),
     loss=dict(type='CombinedLoss',
-              loss_ctc=dict(type='CTCLoss', weight=1.0),
-              loss_center=dict(type='CenterLoss', weight=0.05)),
+              loss_ctc=dict(type='CTCLoss', use_focal_loss=True, weight=1.0),
+              loss_ace=dict(type='ACELoss', weight=1.0),
+              loss_center=dict(type='CenterLoss', center_file_path='center.pth', weight=0.05)),
+    # loss=dict(type='CTCLoss'),
     strategy=strategy,
     data=data,
     metric=dict(type='RecF1'),  # RecF1 or RecAcc

@@ -1,6 +1,9 @@
 import os
 import re
+import signal
+import platform
 import contextlib
+import matplotlib.pyplot as plt
 from pytorch_lightning.callbacks import TQDMProgressBar
 
 
@@ -100,3 +103,106 @@ class Timeout(contextlib.ContextDecorator):
 def is_chinese(s='人工智能'):
     # Is string composed of any Chinese characters?
     return True if re.search('[\u4e00-\u9fff]', str(s)) else False
+
+
+def has_ctcloss(loss_cfg):
+    if loss_cfg.type.lower() == 'ctcloss':
+        return True
+    if loss_cfg.type.lower() == 'combinedloss':
+        loss_cfg.pop('type')
+        for k,v in loss_cfg.items():
+            if v.type.lower() == 'ctcloss':
+                return True
+    return False
+
+
+@try_except
+@Timeout(30)
+def plot_reclabels(trainset, valset=None, out_file='./label.jpg'):
+    train_labels = trainset.get_labels()
+    val_labels = valset.get_labels()
+    train_labels = list(train_labels.items())
+    train_labels = sorted(train_labels, key=lambda x: x[1], reverse=True)
+    y1 = [x[1] if x[1] > 0 else 1e-7 for x in train_labels]
+    max_y1 = max(y1)
+    
+    plt.figure(figsize=(10,4))
+    ax = plt.plot(y1)
+    ax[0].set_label('train labels')
+
+    if val_labels is not None:
+        y2 = [val_labels[x[0]] if val_labels[x[0]] > 0 else 1e-7 for x in train_labels]
+        val_char_num = sum(y2)
+        num = 0
+        for i,v in enumerate(y2):
+            num += v
+            if num / val_char_num > 0.99:
+                ax = plt.plot([i,i], [0,max_y1], '--', color='red')
+                ax[0].set_label('0.99 val')
+                break
+        ax = plt.plot(y2)
+        ax[0].set_label('val labels')
+
+    plt.xlabel('chars', fontsize=15)
+    plt.ylabel('count', fontsize=15)
+    plt.ylim(1, max_y1)
+    plt.yscale('log')
+    plt.legend(fontsize=12)
+    plt.tight_layout()
+    plt.savefig(out_file, dpi=200, bbox_inches='tight')
+
+
+# def plot_haha(trainset, valset=None, wrong=None):
+#     train_labels = trainset.get_labels()
+#     val_labels = valset.get_labels()
+#     import copy
+#     wrong_labels = copy.deepcopy(val_labels)
+#     for k in wrong_labels:
+#         wrong_labels[k] = 0
+#     with open(wrong, 'r') as f:
+#         f = [i.strip('\n') for i in f]
+#     for i in f:
+#         if i in wrong_labels:
+#             wrong_labels[i] += 1
+
+#     train_labels = list(train_labels.items())
+#     train_labels = sorted(train_labels, key=lambda x: x[1], reverse=True)
+#     y1 = [x[1] if x[1] > 0 else 1e-7 for x in train_labels]
+#     max_y1 = max(y1)
+    
+#     plt.figure(figsize=(10,4))
+#     ax = plt.plot(y1)
+#     ax[0].set_label('train labels')
+
+#     if val_labels is not None:
+#         y2 = [val_labels[x[0]] if val_labels[x[0]] > 0 else 1e-7 for x in train_labels]
+#         val_char_num = sum(y2)
+#         num = 0
+#         for i,v in enumerate(y2):
+#             num += v
+#             if num / val_char_num > 0.99:
+#                 ax = plt.plot([i,i], [0,max_y1], '--', color='red')
+#                 ax[0].set_label('0.99 val')
+#                 break
+#         ax = plt.plot(y2)
+#         ax[0].set_label('val labels')
+
+#     if wrong_labels is not None:
+#         y2 = [wrong_labels[x[0]] if wrong_labels[x[0]] > 0 else 1e-7 for x in train_labels]
+#         val_char_num = sum(y2)
+#         num = 0
+#         for i,v in enumerate(y2):
+#             num += v
+#             if num / val_char_num > 0.99:
+#                 ax = plt.plot([i,i], [0,max_y1], '--', color='black')
+#                 ax[0].set_label('0.99 wrong')
+#                 break
+#         ax = plt.plot(y2)
+#         ax[0].set_label('wrong labels')
+
+#     plt.xlabel('chars', fontsize=15)
+#     plt.ylabel('count', fontsize=15)
+#     plt.ylim(1, max_y1)
+#     plt.yscale('log')
+#     plt.legend(fontsize=12)
+#     plt.tight_layout()

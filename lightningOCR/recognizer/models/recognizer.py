@@ -5,6 +5,7 @@ import torch.nn as nn
 from lightningOCR.common import BaseLitModule
 from lightningOCR.common import LIGHTNING_MODULE
 from lightningOCR.common.metric import RecAcc, RecF1
+from lightningOCR.common.utils import plot_reclabels
 
 
 @LIGHTNING_MODULE.register()
@@ -16,7 +17,7 @@ class Recognizer(BaseLitModule):
         architecture,
         loss,
         metric=None,
-        postprocess=None
+        postprocess=None,
     ):
         super(Recognizer, self).__init__(
             data, strategy, architecture, loss, metric, postprocess
@@ -29,6 +30,8 @@ class Recognizer(BaseLitModule):
         self.register_buffer('val_corrects', torch.tensor(0.0))
         self.register_buffer('val_gt_samples', torch.tensor(0.0))
         self.register_buffer('val_pred_samples', torch.tensor(0.0))
+
+        self.center = {}
 
     def forward(self, x):
         """
@@ -49,6 +52,14 @@ class Recognizer(BaseLitModule):
         self.log(f'recall/{mode}', recall, prog_bar=prog_bar, logger=logger)
         self.log(f'f1/{mode}', f1, prog_bar=prog_bar, logger=logger)
 
+    def on_train_start(self):
+        # Plot distribution of trainset and valset
+        if not hasattr(self.trainset, 'lmdb_sets'):
+            self.trainset.open_lmdb()
+        if not hasattr(self.valset, 'lmdb_sets'):
+            self.valset.open_lmdb()
+        plot_reclabels(self.trainset, self.valset, os.path.join(self.logger.log_dir, f'labels.jpg'))
+
     def training_step(self, batch, batch_idx):
         x = batch['image']
         gt = batch['gt']
@@ -58,7 +69,7 @@ class Recognizer(BaseLitModule):
 
         # Log loss
         for k, v in loss.items():
-            self.log(f'{k}/train', v, prog_bar=False, logger=True, on_epoch=True, on_step=False)
+            self.log(f'{k}/train', v.item(), prog_bar=False, logger=True, on_epoch=True, on_step=False, batch_size=len(x))
 
         # Log metric
         if isinstance(self.metric, RecAcc):
@@ -102,31 +113,57 @@ class Recognizer(BaseLitModule):
         gt = batch['gt']
         pred = self.model(x)
         loss = self.loss(pred, gt)
-        pred, gt = self.postprocess(pred, gt)
+        pred_result, gt_result = self.postprocess(pred, gt)
 
         # Log loss
         for k, v in loss.items():
-            self.log(f'{k}/val', v, prog_bar=False, logger=True, on_epoch=True, on_step=False)
+            self.log(f'{k}/val', v.item(), prog_bar=False, logger=True, on_epoch=True, on_step=False, batch_size=len(x))
 
         # Update for metric
         if isinstance(self.metric, RecAcc):
-            c, s, wrong_index = self.metric(pred, gt)
+            c, s, wrong_index = self.metric(pred_result, gt_result)
             self.val_corrects += c
             self.val_gt_samples += s
         else:
-            match_chars, gt_chars, pred_chars, wrong_index = self.metric(pred, gt)
+            match_chars, gt_chars, pred_chars, wrong_index = self.metric(pred_result, gt_result)
             self.val_corrects += match_chars
             self.val_gt_samples += gt_chars
             self.val_pred_samples += pred_chars
+
+        # Plot
+        if self.global_rank in [-1, 0] and self.current_epoch == 0 and \
+           batch_idx < 6 and hasattr(self.valset, 'plot_batch'):
+            # do plot
+            os.makedirs(self.logger.log_dir, exist_ok=True)
+            self.valset.plot_batch(batch, os.path.join(self.logger.log_dir, f'val_batch_{batch_idx}.jpg'))
 
         # Save wrong predicts
         if self.stage == 'validate' and self.save_fault:
             falut_dir = os.path.join(self.logger.log_dir, 'fault')
             os.makedirs(falut_dir, exist_ok=True)
             for index in wrong_index:
-                title = f'pred:{pred["text"][index]}\ngt:{gt["text"][index]}'
+                title = f'pred:{pred_result["text"][index]}\ngt:{gt_result["text"][index]}'
                 save_img = os.path.join(falut_dir, f'{batch_idx}.{self.global_rank}.{index}.jpg')
                 self.valset.plot(batch['image'][index], title, save_img)
+
+        # Update center
+        if self.stage == 'validate' and self.save_center:
+            feats = pred['feats'] # (N, T, C)
+            logits = pred['logits'] # (N, T, D)
+            indexs = torch.argmax(logits, dim=2) # (N, T)
+            indexs = indexs.cpu().numpy()
+            N, T = indexs.shape
+            for i in range(N):
+                if i not in wrong_index:
+                    feat = feats[i]
+                    index = indexs[i]
+                    for j in range(T):
+                        if index[j] in self.center:
+                            self.center[index[j]][0] = \
+                                (self.center[index[j]][0] * self.center[index[j]][1] + feat[j]) / (self.center[index[j]][1] + 1)
+                            self.center[index[j]][1] += 1
+                        else:
+                            self.center[index[j]] = [feat[j], 1]
 
     def validation_epoch_end(self, val_step_outputs):
         val_corrects = self.all_gather(self.val_corrects)
@@ -141,3 +178,6 @@ class Recognizer(BaseLitModule):
         self.val_corrects.zero_()
         self.val_gt_samples.zero_()
         self.val_pred_samples.zero_()
+
+        if self.stage == 'validate' and self.save_center:
+            torch.save(self.center, 'center.pth')

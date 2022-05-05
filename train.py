@@ -10,7 +10,7 @@ from lightningOCR import recognizer
 from lightningOCR.common import Config
 from lightningOCR.common import build_lightning_model
 from lightningOCR.common.utils import intersect_dicts, update_cfg, colorstr
-from lightningOCR.common.utils import LitProgressBar
+from lightningOCR.common.utils import LitProgressBar, has_ctcloss
 
 
 def parse_opt(known=False):
@@ -50,7 +50,11 @@ def parse_opt(known=False):
                         help='only validate final epoch')
     parser.add_argument('--nosave',         action='store_true',
                         help='do not save checkpoint')
+    
+    # do while validate
     parser.add_argument('--save-fault',     action='store_true',
+                        help='save wrong prediction')
+    parser.add_argument('--save-center',    action='store_true',
                         help='save wrong prediction')
     
     opt = parser.parse_known_args()[0] if known else parser.parse_args()
@@ -82,6 +86,7 @@ def main():
     lmodel.prepare_data()
     lmodel.setup(stage={'train':'fit', 'val':'validate', 'test':'test'}[opt.mode])
     lmodel.save_fault = opt.save_fault
+    lmodel.save_center = opt.save_center
 
     if opt.weights:
         assert os.path.exists(opt.weights), f'weights does not exist: {opt.weights}'
@@ -106,7 +111,7 @@ def main():
         callbacks=[bar, checkpoint],
         sync_batchnorm=opt.sync_bn and devices > 1,
         precision=16 if opt.fp16 else 32,
-        deterministic=False if opt.seed is None or cfg.model.loss.type=='CTCLoss' else True,
+        deterministic=False if opt.seed is None or has_ctcloss(cfg.model.loss) else True,
         benchmark=True if opt.seed is None else False,
         strategy='ddp' if devices > 1 else None,
         check_val_every_n_epoch= epochs+1 if opt.noval else opt.val_period,

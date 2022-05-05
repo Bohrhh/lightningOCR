@@ -1,5 +1,6 @@
 import difflib
 import torch
+import numpy as np
 import torch.nn as nn
 import torch.nn.functional as F
 from .registry import Registry
@@ -97,4 +98,16 @@ class RecF1(nn.Module):
             pred_chars += len(j)
             if i != j:
                 wrong_index.append(index)
+
+            ### save wrong chars
+            # i = np.array(list(i))
+            # mask = np.zeros(len(i)) == 0
+            # for k in matchs:
+            #     mask[k.a:k.a+k.size] = False
+            # i = i[mask]
+            # if len(i):
+            #     s = '\n'.join(list(i)) + '\n'
+            #     with open('wrong.txt', 'a+') as f:
+            #         f.write(s)
+
         return match_chars, gt_chars, pred_chars, wrong_index

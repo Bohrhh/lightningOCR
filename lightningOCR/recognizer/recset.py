@@ -33,6 +33,7 @@ class RecDataset(BaseDataset):
     def __init__(self,
                  data_root,
                  pipeline,
+                 character_dict_path,
                  length=None,
                  fontfile=None,
                  postprocess=None):
@@ -42,6 +43,7 @@ class RecDataset(BaseDataset):
         else:
             self.data_root = data_root
 
+        # Get number of samples
         num_samples = 0
         for i, root in enumerate(self.data_root):
             with lmdb.open(root) as env:
@@ -52,6 +54,14 @@ class RecDataset(BaseDataset):
         assert self.length <= num_samples, \
             "The data number is only {}, but set by {}".format(num_samples, self.length)
 
+        # Get rec dictionary
+        self.character_dict_path = character_dict_path
+        self.rec_dict = {}
+        with open(character_dict_path, 'r') as f:
+            for i in f:
+                self.rec_dict[i.strip('\n')] = 0
+
+        # Fontfile for vis
         self.fontfile = fontfile
     
     def open_lmdb(self):
@@ -96,6 +106,29 @@ class RecDataset(BaseDataset):
         imgbuf = txn.get(img_key)
         return imgbuf, label
 
+    def get_label(self, i):
+        lmdb_idx, file_idx = self.data_idx_order_list[i]
+        lmdb_idx = int(lmdb_idx)
+        file_idx = int(file_idx)
+
+        txn = self.lmdb_sets[lmdb_idx]['txn']
+        label_key = 'label-%09d'.encode() % file_idx
+        label = txn.get(label_key)
+        label = '' if label is None else label.decode('utf-8')
+        return label
+
+    def get_labels(self):
+        for k in self.rec_dict:
+            self.rec_dict[k] = 0
+        for i in range(self.length):
+            label = self.get_label(i)
+            if not label:
+                continue
+            for c in label:
+                if c in self.rec_dict:
+                    self.rec_dict[c] += 1
+        return self.rec_dict
+
     def load_data(self, idx):
         if not hasattr(self, 'lmdb_sets'):
             self.open_lmdb()
@@ -108,8 +141,6 @@ class RecDataset(BaseDataset):
         imgbuf, label = sample_info
         img = np.frombuffer(imgbuf, dtype='uint8')
         img = cv2.imdecode(img, 1)
-        if len(label) <= 2:
-            raise TypeError
         return {'image': img, 'label': label, 'target': label}
 
     def after_pipeline(self, results):
@@ -121,11 +152,12 @@ class RecDataset(BaseDataset):
 
     def gather(self, results):
         results = {
-            'image': results['image'],
+            'image': results['image'],  # (N,C,H,W)
             'gt':{
-                'target': results['target'],
-                'target_length': results['length'],
-                'label': results['label']
+                'target': results['target'], # (N, max_length)
+                'target_length': results['length'], # (N, )
+                'label': results['label'], # (N, ), list of text
+                'target_ace': results['target_ace'] # (N, D), D means dictionary, 6625
             }
         }
         return results
