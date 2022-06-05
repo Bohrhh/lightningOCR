@@ -40,7 +40,7 @@ train_pipeline = {'transforms':[
                         dict(type='GaussNoise', var_limit=(10.0, 50.0), p=0.5),
                         dict(type='Reverse', p=0.5),
                         dict(type='Normalize', **img_norm_cfg),
-                        dict(type='TextLineResize', height=32, width=320, p=1)]}
+                        dict(type='TextLineResize', height=48, width=320, p=1)]}
 
 val_pipeline  =  {'transforms':[
                         dict(type='CTCLabelEncode',
@@ -49,7 +49,7 @@ val_pipeline  =  {'transforms':[
                              character_type='ch',
                              use_space_char=True),
                         dict(type='Normalize', **img_norm_cfg),
-                        dict(type='TextLineResize', height=32, width=320, p=1)]}
+                        dict(type='TextLineResize', height=48, width=320, p=1)]}
 
 test_pipeline =  {'transforms':[ 
                         dict(type='Normalize', **img_norm_cfg)]}
@@ -100,7 +100,7 @@ strategy = dict(
 # model
 model = dict(
     type='Recognizer',
-    architecture=dict(type='CRNN', return_feats=True),
+    architecture=dict(type='SVTR', return_feats=True),
     loss=dict(type='CombinedLoss',
               loss_ctc=dict(type='CTCLoss', use_focal_loss=True, weight=1.0),
               loss_ace=dict(type='ACELoss', weight=1.0)),

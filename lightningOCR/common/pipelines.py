@@ -13,6 +13,7 @@ PIPELINES.register(name='Normalize', obj=A.Normalize)
 PIPELINES.register(name='ColorJitter', obj=A.ColorJitter)
 PIPELINES.register(name='GaussianBlur', obj=A.GaussianBlur)
 PIPELINES.register(name='GaussNoise', obj=A.GaussNoise)
+PIPELINES.register(name='Resize', obj=A.Resize)
 
 
 @PIPELINES.register()
