@@ -5,10 +5,8 @@ import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
 from matplotlib import font_manager
-from torch.utils.data import Dataset
-from abc import ABCMeta, abstractmethod
 
-from lightningOCR.common import Compose, DATASETS, BaseDataset
+from lightningOCR.common import DATASETS, BaseDataset
 from lightningOCR.common.utils import is_chinese
 
 matplotlib.use('Agg')  # for writing to files only

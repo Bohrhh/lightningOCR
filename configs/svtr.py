@@ -17,8 +17,7 @@ train_root = [
     # '../data/rec/ctw/val',
     # '../data/rec/synth/icdar2019_lsvt_weak',
 ]
-# val_root = '../data/rec/mtwi2018/test',
-val_root = '../data/rec/ctw/val',
+val_root = '../data/rec/mtwi2018/test',
 
 character_dict_path = './lightningOCR/common/rec_keys.txt'
 fontfile = './lightningOCR/common/Arial.Unicode.ttf'
@@ -107,7 +106,7 @@ model = dict(
     # loss=dict(type='CTCLoss'),
     strategy=strategy,
     data=data,
-    metric=dict(type='RecAcc'),  # RecF1 or RecAcc
+    metric=dict(type='RecF1'),  # RecF1 or RecAcc
     postprocess=postprocess
 )
 
